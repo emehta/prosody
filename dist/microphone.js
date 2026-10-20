@@ -8,7 +8,7 @@ export class Microphone {
  }
  prepare(){
   if(this.prepared)return this.prepared;const ctx=this.context??=this.createContext();
-  this.prepared=ctx.audioWorklet.addModule(new URL('./capture.js?v=5',import.meta.url));
+  this.prepared=ctx.audioWorklet.addModule(new URL('./capture.js?v=7',import.meta.url));
   this.prepared.catch(()=>{if(this.context===ctx)this.prepared=null;});return this.prepared;
  }
  arm(){

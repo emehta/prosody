@@ -1,6 +1,6 @@
-import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=5';
-import {balanceRows,curve,pitchAnchors} from './contour.js?v=5';
-import {createScene} from './scene.js?v=6';
+import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=7';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=7';
+import {createScene} from './scene.js?v=7';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 export function promptSVG(text,small=false){
  const W=small?600:1100,pad=32,scale=small?1.12:1.36;
@@ -10,8 +10,8 @@ export function promptSVG(text,small=false){
  rows.forEach((row,r)=>{let x=(W-row.reduce((n,w)=>n+w.width+w.gap,0))/2;for(const w of row){x+=w.gap;parts.push(wordPaths(w.word,x,r*145+105,scale));x+=w.width;}});return parts.join('')+'</svg>';
 }
 function unalignedSVG(analysis,text,small){
- const W=small?600:1100,pitch=pitchAnchors(analysis,[],analysis.speechStart,analysis.speechEnd),range=Math.max(5,12*Math.log2((analysis.highHz||220)/(analysis.lowHz||120)));
- const points=pitch.map(p=>({x:35+(p.t-analysis.speechStart)/Math.max(.01,analysis.speechEnd-analysis.speechStart)*(W-70),y:45-Math.max(-.6,Math.min(.6,12*Math.log2(p.hz/(analysis.medianHz||160))/range))*48}));
+ const W=small?600:1100,pitch=pitchAnchors(analysis,[],analysis.speechStart,analysis.speechEnd),height=pitchHeight(analysis,28.8);
+ const points=pitch.map(p=>({x:35+(p.t-analysis.speechStart)/Math.max(.01,analysis.speechEnd-analysis.speechStart)*(W-70),y:45-height(p.hz)}));
  return promptSVG(text,small)+`<svg class="unmatched-contour" viewBox="0 0 ${W} 90" role="img" aria-label="Pitch of this take, without word alignment"><path class="pitch-line" d="${curve(points).d}"/></svg>`;
 }
 export function voiceSVG(analysis,words,text,small=false,{time=null}={}){
@@ -23,8 +23,7 @@ export function voiceSVG(analysis,words,text,small=false,{time=null}={}){
   parts.push(`<defs><path id="${id}" d="${layout.d}"/><clipPath id="reveal-${r}"><rect data-reveal="${r}" x="0" y="${top-12}" width="${layout.reveal}" height="${rowH+24}"/></clipPath></defs><g clip-path="url(#reveal-${r})"><use href="#${id}" class="pitch-line"/>`);
   for(const p of frame.pauses.filter(p=>p.r===r))parts.push(`<defs><clipPath id="pause-${p.key}"><rect data-pause="${p.key}" x="${p.x}" y="${top-12}" width="${p.width}" height="${rowH+24}"/></clipPath></defs><use href="#${id}" class="pause-erase" clip-path="url(#pause-${p.key})"/><use href="#${id}" class="pause-bridge" clip-path="url(#pause-${p.key})"/>`);
   for(const w of layout.words){
-   const mark=frame.marks.find(m=>m.index===w.index);
-   parts.push(`<defs><clipPath id="word-clip-${w.index}"><rect data-mark-clip="${w.index}" x="${mark.x}" y="${top-12}" width="${mark.width}" height="${rowH+24}"/></clipPath></defs><use href="#${id}" class="word-mark${w.uncertain?' uncertain':''}" data-mark="${w.index}" opacity="${mark.opacity}" clip-path="url(#word-clip-${w.index})" stroke-width="${(2.6+(w.prominence??.5)*1.6).toFixed(2)}"/>`);
+   for(const mark of frame.marks.filter(m=>m.index===w.index))parts.push(`<defs><clipPath id="word-clip-${mark.key}"><rect data-mark-clip="${mark.key}" x="${mark.x}" y="${top-12}" width="${mark.width}" height="${rowH+24}"/></clipPath></defs><use href="#${id}" class="word-mark${w.uncertain?' uncertain':''}" data-mark="${mark.key}" opacity="${mark.opacity}" clip-path="url(#word-clip-${mark.key})" stroke-width="${(2.6+(w.prominence??.5)*1.6).toFixed(2)}"/>`);
   }
   parts.push('</g>');
   for(const w of layout.words){
@@ -42,15 +41,15 @@ export function bindMotion(container,scene){
  if(!scene)return null;
  const paths=[...container.querySelectorAll('path[id^="contour-"]')],reveals=[...container.querySelectorAll('[data-reveal]')];
  const glyphs=new Map([...container.querySelectorAll('[data-letter]')].map(el=>[el.dataset.letter,el]));
- const marks=new Map([...container.querySelectorAll('[data-mark]')].map(el=>[Number(el.dataset.mark),el]));
- const clips=new Map([...container.querySelectorAll('[data-mark-clip]')].map(el=>[Number(el.dataset.markClip),el]));
+ const marks=new Map([...container.querySelectorAll('[data-mark]')].map(el=>[el.dataset.mark,el]));
+ const clips=new Map([...container.querySelectorAll('[data-mark-clip]')].map(el=>[el.dataset.markClip,el]));
  const pauses=new Map([...container.querySelectorAll('[data-pause]')].map(el=>[el.dataset.pause,el]));
  const hits=new Map([...container.querySelectorAll('[data-hit]')].map(el=>[Number(el.dataset.hit),el]));
  return time=>{
   const frame=scene.frame(time);
   frame.layouts.forEach((l,r)=>{paths[r].setAttribute('d',l.d);reveals[r].setAttribute('width',l.reveal);for(const w of l.words){hits.get(w.index).setAttribute('x',w.x-5);hits.get(w.index).setAttribute('width',w.currentWidth+10);}});
   for(const glyph of frame.glyphs)glyphs.get(glyph.key).setAttribute('transform',glyph.transform);
-  for(const mark of frame.marks){const el=clips.get(mark.index);el.setAttribute('x',mark.x);el.setAttribute('width',mark.width);marks.get(mark.index).setAttribute('opacity',mark.opacity);}
+  for(const mark of frame.marks){const el=clips.get(mark.key);el.setAttribute('x',mark.x);el.setAttribute('width',mark.width);marks.get(mark.key).setAttribute('opacity',mark.opacity);}
   for(const p of frame.pauses){const el=pauses.get(p.key);el.setAttribute('x',p.x);el.setAttribute('width',p.width);}
  };
 }

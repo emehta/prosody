@@ -1,4 +1,4 @@
-import {alignWindowCTC,MODEL,MODEL_REVISION} from './analysis.js?v=5';
+import {alignWindowCTC,MODEL,MODEL_REVISION} from './analysis.js?v=7';
 import {StreamingCTC} from './streaming.js';
 let enginePromise=null,inferenceQueue=Promise.resolve(),session=null,latestId=-1;
 async function engine(){

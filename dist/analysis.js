@@ -19,8 +19,10 @@ export function yin(frame, rate = RATE) {
   const d = new Float32Array(maxLag+1);
   let sum = 0;
   for (let lag=1;lag<=maxLag;lag++) {
-    let diff=0;
-    for(let j=0;j<size;j++) {const v=frame[j]-frame[j+lag];diff+=v*v;}
+    let diff=0;const offset=Math.floor((maxLag-lag)/2);
+    // Keep every lag comparison centered on the frame's timestamp. A fixed
+    // left edge biases fast rising/falling sounds toward earlier audio.
+    for(let j=0;j<size;j++) {const v=frame[offset+j]-frame[offset+j+lag];diff+=v*v;}
     sum+=diff;d[lag]=sum ? diff*lag/sum : 1;
   }
   let lag = minLag;
@@ -40,40 +42,51 @@ export function yin(frame, rate = RATE) {
 
 export function analyze(samples, rate = RATE) {
   if(rate!==RATE)throw new Error('Analysis requires 16 kHz audio.');
-  const duration=samples.length/rate, raw=[];
+  const duration=samples.length/rate, raw=[],energy=[];
   let clipped=0, peak=0;
   for(const v of samples){if(Math.abs(v)>.985)clipped++;peak=Math.max(peak,Math.abs(v));}
-  for(let i=0;i+WINDOW<=samples.length;i+=HOP) {
-    let power=0;for(let j=i;j<i+WINDOW;j++)power+=samples[j]*samples[j];
-    raw.push({t:(i+WINDOW/2)/rate,rms:Math.sqrt(power/WINDOW),hz:null,confidence:0});
+  // Independent 10 ms energy bins cover every sample, including the final
+  // partial bin. Long pitch windows must not smear pauses or emphasis timing.
+  for(let i=0;i<samples.length;i+=HOP){
+    const end=Math.min(samples.length,i+HOP);let sum=0,power=0;
+    for(let j=i;j<end;j++){sum+=samples[j];power+=samples[j]*samples[j];}
+    const n=end-i;energy.push({t:(i+end)/2/rate,start:i/rate,end:end/rate,rms:Math.sqrt(Math.max(0,power/n-(sum/n)**2))});
   }
-  const levels=raw.map(f=>f.rms), noise=quantile(levels,.15), loud=quantile(levels,.90);
+  const levels=energy.map(f=>f.rms), noise=quantile(levels,.15), loud=quantile(levels,.90);
   const threshold=Math.max(.0015,Math.min(loud*.22,noise*3));
-  for(let i=0;i<raw.length;i++) {
-    const f=raw[i]; if(f.rms<threshold)continue;
-    Object.assign(f,yin(samples.subarray(i*HOP,i*HOP+WINDOW)));
+  const starts=[];for(let i=0;i+WINDOW<=samples.length;i+=HOP)starts.push(i);
+  const finalStart=samples.length-WINDOW;
+  if(finalStart>=0&&starts.at(-1)!==finalStart)starts.push(finalStart);
+  for(const start of starts){
+    const t=(start+WINDOW/2)/rate,rms=energy[Math.min(energy.length-1,Math.floor(t*rate/HOP))]?.rms??0;
+    const f={t,rms,hz:null,confidence:0};if(rms>=threshold)Object.assign(f,yin(samples.subarray(start,start+WINDOW)));raw.push(f);
   }
-  // Local median rejects isolated pitch tracking errors without bridging unvoiced frames.
+  // Reject only isolated spikes. A blanket median flattens genuine short
+  // movements, particularly the last syllable of a sentence.
   const frames=raw.map((f,i)=>{
     if(!f.hz)return f;
-    const neighbors=raw.slice(Math.max(0,i-2),i+3).filter(v=>v.hz).map(v=>v.hz);
-    return {...f,hz:quantile(neighbors,.5)};
+    const left=raw[i-1],right=raw[i+1];
+    if(left?.hz&&right?.hz&&Math.abs(12*Math.log2(left.hz/right.hz))<1.5){
+      const local=Math.sqrt(left.hz*right.hz);
+      if(Math.abs(12*Math.log2(f.hz/local))>4)return {...f,hz:local,confidence:Math.min(left.confidence,right.confidence)};
+    }
+    return f;
   });
   const silent=[]; let start=null;
-  frames.forEach((f,i)=>{
-    if(f.rms<threshold){if(start===null)start=Math.max(0,f.t-.02);}
-    else if(start!==null){if(f.t-start>=.18)silent.push({start,end:f.t-.01,duration:f.t-.01-start});start=null;}
-    if(i===frames.length-1&&start!==null&&duration-start>=.18)silent.push({start,end:duration,duration:duration-start});
+  energy.forEach((f,i)=>{
+    if(f.rms<threshold){if(start===null)start=f.start;}
+    else if(start!==null){if(f.start-start>=.18-1e-8)silent.push({start,end:f.start,duration:f.start-start});start=null;}
+    if(i===energy.length-1&&start!==null&&duration-start>=.18)silent.push({start,end:duration,duration:duration-start});
   });
   const voiced=frames.filter(f=>f.hz), hz=voiced.map(f=>f.hz), median=quantile(hz,.5);
-  const speech=frames.filter(f=>f.rms>=threshold);
-  const speechStart=speech[0]?.t ?? 0,speechEnd=speech.at(-1)?.t ?? duration;
+  const speech=energy.filter(f=>f.rms>=threshold);
+  const speechStart=speech[0]?.start ?? 0,speechEnd=speech.at(-1)?.end ?? duration;
   const pauses=silent.filter(p=>p.start>speechStart+.06 && p.end<speechEnd-.06);
   let ending=null;
   // Compare two voiced windows at the end; phrase slope in semitones.
   const tail=voiced.filter(f=>f.t>speechEnd-.55);
   if(tail.length>=12){const split=Math.floor(tail.length/2);const delta=12*Math.log2(quantile(tail.slice(split).map(f=>f.hz),.5)/quantile(tail.slice(0,split).map(f=>f.hz),.5));ending={delta,label:delta>1.2?'Rising':delta< -1.2?'Falling':'Level'};}
-  return {duration,frames,pauses,threshold,peak,clipping:clipped/Math.max(1,samples.length),medianHz:median,lowHz:quantile(hz,.1),highHz:quantile(hz,.9),voicedFraction:voiced.length/Math.max(1,frames.length),speechStart,speechEnd,ending};
+  return {duration,frames,energy,pauses,threshold,peak,clipping:clipped/Math.max(1,samples.length),medianHz:median,lowHz:quantile(hz,.1),highHz:quantile(hz,.9),voicedFraction:voiced.length/Math.max(1,frames.length),speechStart,speechEnd,ending};
 }
 
 export function similarity(a,b) {
@@ -133,12 +146,22 @@ export function alignCTC(logits, dims, text, vocab, duration, blank=0) {
 }
 
 export function summarizeWords(words, analysis) {
-  const data=words.map(w=>{
+  const data=words.map((original,i)=>{
+    // CTC peaks are sparse: retain the audible onset and final release rather
+    // than cutting the first/last word off at their token-emission boundaries.
+    const w={...original,start:i?original.start:Math.min(original.start,analysis.speechStart),end:i===words.length-1?Math.max(original.end,analysis.speechEnd):original.end};
     const frames=analysis.frames.filter(f=>f.t>=w.start&&f.t<=w.end), voiced=frames.filter(f=>f.hz);
     const hz=quantile(voiced.map(f=>f.hz),.5),rms=quantile(frames.map(f=>f.rms),.75);
     const syllables=Math.max(1,(w.word.toLowerCase().replace(/e$/,'').match(/[aeiouy]+/g)||[]).length);
     const length=(w.end-w.start)/syllables;
-    return {...w,hz:hz||null,rms,length,voicedFraction:voiced.length/Math.max(1,frames.length)};
+    const bins=(analysis.energy||analysis.frames).filter(f=>f.t>=w.start&&f.t<=w.end),ceiling=quantile(bins.map(f=>f.rms),.9);
+    const gate=Math.max(analysis.threshold||0,ceiling*.62),rhythm=[];
+    for(const f of bins){
+      if(f.rms<gate||!ceiling)continue;
+      const start=Math.max(w.start,f.start??f.t-.005),end=Math.min(w.end,f.end??f.t+.005),last=rhythm.at(-1);
+      if(last&&start-last.end<=.04+1e-8)last.end=end;else rhythm.push({start,end});
+    }
+    return {...w,hz:hz||null,rms,length,rhythm:rhythm.filter(p=>p.end-p.start>=.02-1e-8),voicedFraction:voiced.length/Math.max(1,frames.length)};
   });
   const db=data.map(w=>20*Math.log10(Math.max(w.rms,.00001))),dbMedian=quantile(db,.5),dbScale=Math.max(3,quantile(db,.85)-quantile(db,.15));
   const lengthMedian=quantile(data.map(w=>w.length),.5)||.1;

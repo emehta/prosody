@@ -1,7 +1,7 @@
-import {RATE,summarizeWords,encodeWav} from './analysis.js?v=5';
-import {AnalysisResampler,analysisSamples,joinSamples,leadingTrim} from './audio.js?v=5';
-import {promptSVG,voiceSVG,bindMotion} from './view.js?v=6';
-import {Microphone} from './microphone.js?v=5';
+import {RATE,summarizeWords,encodeWav} from './analysis.js?v=7';
+import {AnalysisResampler,analysisSamples,joinSamples,leadingTrim} from './audio.js?v=7';
+import {promptSVG,voiceSVG,bindMotion} from './view.js?v=7';
+import {Microphone} from './microphone.js?v=7';
 const microphone=new Microphone();
 const sentences=['They tried to keep a secret, but somehow everyone found out.','You really thought I would leave without saying goodbye?','I ordered the coffee, but she asked for a cup of tea.','When the rain finally stopped, we walked home together.','I never said you had to finish it today.'];
 const $=id=>document.getElementById(id),audio=$('audio'),reduced=matchMedia('(prefers-reduced-motion: reduce)');
@@ -30,8 +30,8 @@ function controls(){
  document.body.classList.remove('booting');
 }
 function initializeWorkers(){
- speech=new Worker(new URL('./worker.js?v=5',import.meta.url),{type:'module'});
- signal=new Worker(new URL('./signal-worker.js?v=5',import.meta.url),{type:'module'});
+ speech=new Worker(new URL('./worker.js?v=7',import.meta.url),{type:'module'});
+ signal=new Worker(new URL('./signal-worker.js?v=7',import.meta.url),{type:'module'});
  speech.onmessage=({data})=>{
   if(data.type==='progress'){$('visualization').dataset.modelProgress=String(Math.round(data.progress));return;}
   if(data.type==='ready'){modelReady=true;modelFailed=false;$('visualization').dataset.threads=String(data.threads);$('retry-model').hidden=true;controls();return;}
@@ -158,7 +158,7 @@ $('upload').onchange=async e=>{
 $('example').onclick=async()=>{
  $('how-card').close();select(0);importing=true;controls();const id=generation;
  try{
-  const response=await fetch('./assets/example.json?v=5');if(!response.ok)throw new Error();const data=await response.json();if(id!==generation)return;
+  const response=await fetch('./assets/example.json?v=7');if(!response.ok)throw new Error();const data=await response.json();if(id!==generation)return;
   result=data;words=data.words;isExample=true;mode='result';$('reset').hidden=false;$('sample-label').hidden=false;audio.src='./assets/example.wav?v=5';poseTime=null;status('Ready');render();
  }catch{message('The example couldn’t load. Try recording your voice.',true);}finally{importing=false;controls();}
 };

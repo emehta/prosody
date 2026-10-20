@@ -1,6 +1,8 @@
 # Prosody
 
-GitHub Pages deployment for Prosody.
+Live site: https://emehta.github.io/prosody/
+
+Source: https://github.com/emehta/prosody
 
 Read one of five sentences and see the shape of your speech. The main studio contains microphone, playback and upload controls; the guide opens in a How it works card. The only summary metrics are pitch range, speaking pace and pauses. Primary accent: #2C9FC7.
 
@@ -28,7 +30,7 @@ Short, silent or mismatched takes keep the full selected sentence visible. A mea
 
 Thin vector lettering retains a uniform stroke under scaling. Relative sound duration controls horizontal width. Letter height and bounded tilt follow local pitch and its slope. On playback, each row begins with straight, unstretched letters; letters move as their words are spoken and the blue contour is revealed in time. Pausing and seeking preserve the corresponding pose. The completed recording has a full visualization. Reduced-motion preferences keep a static pose.
 
-The contour uses 40 ms anchors from 10 ms YIN frames, short confidence-weighted log-frequency smoothing, and shape-preserving cubic interpolation. Connections across unvoiced sounds are interpolation. Long quiet intervals have dashed bridges. Coral duration/prominence overlays use clipped instances of the identical blue path. Motion updates existing SVG nodes at up to 30 frames per second; it does not replace controls or regenerate letter outlines during playback. SVG export always renders the complete visualization.
+The contour uses 20 ms anchors from 10 ms YIN frames, short confidence-weighted log-frequency smoothing without a blanket median, and shape-preserving cubic interpolation. Connections across unvoiced sounds are interpolation. Long quiet intervals have dashed bridges. Coral energy/prominence overlays follow 10 ms energy bins and use clipped instances of the identical blue path. The complete measured pitch range is fitted without flattening unusually high or low endings. Audible onset and final release extend the first and last word bounds when CTC emissions are sparse. Motion updates existing SVG nodes at up to 30 frames per second; it does not replace controls or regenerate letter outlines during playback. SVG export always renders the complete visualization.
 
 ## Analysis
 
@@ -56,4 +58,4 @@ The pronunciation study outside this repository is deferred and excluded from de
 - Transformers.js, Apache 2.0; ONNX Runtime, MIT; DM Sans, SIL Open Font License. Bundled licenses are retained.
 - The labeled demo is macOS Samantha synthetic speech, retained at 48 kHz.
 
-See `VERIFICATION.md` for measured checks and limits.
+GitHub Actions tests the source and publishes `dist/` to Pages on pushes to `main`. No microphone recording or uploaded audio is sent to GitHub or stored in the repository. See `VERIFICATION.md` for measured checks and limits.

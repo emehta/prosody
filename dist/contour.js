@@ -1,17 +1,24 @@
-import {quantile} from './analysis.js?v=5';
+
+// Fit the full measured range. Percentile-based hard clipping used to turn
+// unusually high/low phrase endings into a flat line.
+export function pitchHeight(analysis,amplitude=49.2){
+  const center=analysis.medianHz||160;let extent=3;
+  for(const f of analysis.frames)if(f.hz)extent=Math.max(extent,Math.abs(12*Math.log2(f.hz/center)));
+  return hz=>12*Math.log2(hz/center)/extent*amplitude;
+}
 
 // Retain sub-word movement: log-frequency smoothing over a short acoustic
-// neighborhood, sampled every 40 ms. Word boundaries never average pitch away.
+// neighborhood, sampled every 20 ms. Word boundaries never average pitch away.
 // Only voiced samples contribute; gaps are connected by the display, not measured.
 export function pitchAnchors(analysis,words,start,end){
   const voiced=analysis.frames.filter(f=>f.hz&&f.t>=start&&f.t<=end);
   if(!voiced.length)return [];
   const anchors=[];let cursor=0;
-  for(let t=voiced[0].t;t<=voiced.at(-1).t+.00001;t+=.04){
-    while(cursor<voiced.length&&voiced[cursor].t<t-.04)cursor++;
+  for(let t=voiced[0].t;t<=voiced.at(-1).t+.00001;t+=.02){
+    while(cursor<voiced.length&&voiced[cursor].t<t-.02)cursor++;
     let sum=0,weight=0;
-    for(let j=cursor;j<voiced.length&&voiced[j].t<=t+.04;j++){
-      const f=voiced[j],w=Math.exp(-.5*((f.t-t)/.018)**2)*Math.max(.1,f.confidence??1);
+    for(let j=cursor;j<voiced.length&&voiced[j].t<=t+.02;j++){
+      const f=voiced[j],w=Math.exp(-.5*((f.t-t)/.008)**2)*Math.max(.1,f.confidence??1);
       sum+=Math.log2(f.hz)*w;weight+=w;
     }
     if(weight>0)anchors.push({t,hz:2**(sum/weight)});

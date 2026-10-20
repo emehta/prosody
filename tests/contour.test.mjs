@@ -16,7 +16,7 @@ test('Curve does not overshoot sampled pitch extrema',()=>{
 test('Coral marks and pause connections reference exactly the same geometry as the teal line',()=>{
  const {svg,rows}=voiceSVG(example,example.words,example.text,false);
  assert.equal((svg.match(/class="pitch-line"/g)||[]).length,rows.length);
- assert.equal((svg.match(/class="word-mark/g)||[]).length,11);
+ assert.equal((svg.match(/class="word-mark/g)||[]).length,example.words.reduce((n,w)=>n+(w.rhythm?.length??1),0));
  for(const match of svg.matchAll(/<use href="#([^"]+)" class="(?:word-mark|pitch-line|pause-bridge)/g))assert.ok(svg.includes(`<path id="${match[1]}" d="`));
  for(const match of svg.matchAll(/<path id="contour-\d+" d="([^"]*)"/g))assert.equal((match[1].match(/M/g)||[]).length,1);
 });
