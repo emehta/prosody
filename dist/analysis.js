@@ -72,6 +72,12 @@ export function analyze(samples, rate = RATE) {
     }
     return f;
   });
+  return describeAcoustics(frames,energy,duration,peak,clipped/Math.max(1,samples.length),threshold);
+}
+
+export function describeAcoustics(frames,energy,duration,peak=0,clipping=0,threshold=null){
+  if(threshold===null){const levels=energy.map(f=>f.rms);threshold=Math.max(.0015,Math.min(quantile(levels,.9)*.22,quantile(levels,.15)*3));}
+  frames=frames.map(f=>f.rms>=threshold?f:{...f,hz:null,confidence:0});
   const silent=[]; let start=null;
   energy.forEach((f,i)=>{
     if(f.rms<threshold){if(start===null)start=f.start;}
@@ -86,7 +92,7 @@ export function analyze(samples, rate = RATE) {
   // Compare two voiced windows at the end; phrase slope in semitones.
   const tail=voiced.filter(f=>f.t>speechEnd-.55);
   if(tail.length>=12){const split=Math.floor(tail.length/2);const delta=12*Math.log2(quantile(tail.slice(split).map(f=>f.hz),.5)/quantile(tail.slice(0,split).map(f=>f.hz),.5));ending={delta,label:delta>1.2?'Rising':delta< -1.2?'Falling':'Level'};}
-  return {duration,frames,energy,pauses,threshold,peak,clipping:clipped/Math.max(1,samples.length),medianHz:median,lowHz:quantile(hz,.1),highHz:quantile(hz,.9),voicedFraction:voiced.length/Math.max(1,frames.length),speechStart,speechEnd,ending};
+  return {duration,frames,energy,pauses,threshold,peak,clipping,medianHz:median,lowHz:quantile(hz,.1),highHz:quantile(hz,.9),voicedFraction:voiced.length/Math.max(1,frames.length),speechStart,speechEnd,ending};
 }
 
 export function similarity(a,b) {
@@ -95,6 +101,26 @@ export function similarity(a,b) {
   let prev=Array.from({length:b.length+1},(_,i)=>i);
   for(let i=1;i<=a.length;i++) {const row=[i];for(let j=1;j<=b.length;j++)row[j]=Math.min(row[j-1]+1,prev[j]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));prev=row;}
   return Math.max(0,1-prev[b.length]/Math.max(a.length,b.length));
+}
+
+export function decodeCTC(logits,dims,vocab,blank=0){
+ const [T,V]=dims.slice(-2),reverse=Object.fromEntries(Object.entries(vocab).map(([k,v])=>[v,k]));let decoded='',last=-1;
+ for(let t=0;t<T;t++){let best=0;for(let v=1;v<V;v++)if(logits[t*V+v]>logits[t*V+best])best=v;if(best!==blank&&best!==last)decoded+=reverse[best]??'';last=best;}
+ return decoded.replaceAll('|',' ').replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
+}
+
+export function alignPrefixCTC(logits,dims,text,vocab,duration){
+ const decoded=decodeCTC(logits,dims,vocab),expected=normalize(text).split(' ');let best=null;
+ for(let n=1;n<=expected.length;n++){
+  const prefix=expected.slice(0,n).join(' '),score=similarity(prefix,decoded);
+  if(score>=.82&&(!best||score>best.score))best={prefix,score};
+ }
+ if(!best)return null;
+ try{
+  const aligned=alignCTC(logits,dims,best.prefix,vocab,duration);
+  while(aligned.words.length&&aligned.words.at(-1).confidence<.35)aligned.words.pop();
+  return aligned.words.length?{...aligned,provisional:true}:null;
+ }catch{return null;}
 }
 
 // Viterbi over CTC's blank/token state graph. Unlike proportional word spacing,
@@ -139,9 +165,7 @@ export function alignCTC(logits, dims, text, vocab, duration, blank=0) {
     w.start=Math.max(0,w.start-Math.min(.04,i?(w.start-raw[i-1].end)/2:.04));
     w.end=Math.min(duration,w.end+Math.min(.04,i<raw.length-1?(raw[i+1].start-w.end)/2:.04));
   });
-  const reverse=Object.fromEntries(Object.entries(vocab).map(([k,v])=>[v,k]));let decoded='',last=-1;
-  for(let t=0;t<T;t++){let best=0;for(let v=1;v<V;v++)if(logits[t*V+v]>logits[t*V+best])best=v;if(best!==blank&&best!==last)decoded+=reverse[best]??'';last=best;}
-  decoded=decoded.replaceAll('|',' ').replace(/<[^>]+>/g,'').trim();
+  const decoded=decodeCTC(logits,dims,vocab,blank);
   return {words,decoded,match:similarity(text,decoded)};
 }
 
@@ -191,4 +215,11 @@ export function alignWindowCTC(logits,dims,text,vocab,rawDuration,offset=0,playb
  const windowDims=[...dims];windowDims[windowDims.length-2]=last-first;
  const aligned=alignCTC(logits.subarray(first*V,last*V),windowDims,text,vocab,(last-first)*step,blank),shift=first*step-offset;
  aligned.words=aligned.words.map(w=>({...w,start:Math.max(0,w.start+shift),end:Math.max(0,Math.min(playbackDuration,w.end+shift))}));return aligned;
+}
+
+export function transcribeWindowCTC(logits,dims,vocab,rawDuration,offset=0,playbackDuration=rawDuration){
+ const [T,V]=dims.slice(-2),step=rawDuration/T,first=Math.max(0,Math.floor(offset/step)),last=Math.min(T,Math.ceil((offset+playbackDuration)/step));
+ const text=decodeCTC(logits.subarray(first*V,last*V),[1,last-first,V],vocab);
+ if(!text)return {words:[],decoded:'',text:'',match:0,transcribed:true};
+ return {...alignWindowCTC(logits,dims,text,vocab,rawDuration,offset,playbackDuration),text:text.toLowerCase(),transcribed:true};
 }

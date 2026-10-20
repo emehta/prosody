@@ -17,7 +17,7 @@ function delivery(text,variant=0){
 }
 test('Playback starts with unstretched, untilted letters on one baseline per row',()=>{
  const scene=createScene(example,example.words,example.text),frame=scene.frame(0);
- assert.ok(frame.glyphs.every(g=>g.sx===1&&g.rotation===0&&g.progress===0));
+ assert.ok(frame.glyphs.every(g=>g.sx===1&&g.sy===1&&g.rotation===0&&g.progress===0));
  for(const row of scene.rows){const indices=new Set(row.map(w=>w.index)),baselines=frame.glyphs.filter(g=>indices.has(g.word)).map(g=>g.y);assert.ok(baselines.every(y=>y===row.base));}
  assert.ok(frame.layouts.every(l=>l.reveal===0));
 });
@@ -29,7 +29,7 @@ test('Playback progressively moves spoken letters while keeping future words str
 test('Longer realizations of the same word produce wider lettering',()=>{
  const words=[{word:'word',start:.1,end:.25,prominence:.5},{word:'word',start:.4,end:1.15,prominence:.5}];
  const a={...example,duration:1.2,speechStart:.1,speechEnd:1.15,pauses:[]},scene=createScene(a,words,'word word'),frame=scene.frame(null);
- const first=frame.glyphs.find(g=>g.word===0),second=frame.glyphs.find(g=>g.word===1);assert.ok(second.sx>first.sx*1.5);
+ const first=frame.glyphs.find(g=>g.word===0),second=frame.glyphs.find(g=>g.word===1);assert.ok(second.sx>first.sx*1.5);assert.ok(second.sy>first.sy*1.4,'longer words also expand vertically');
 });
 test('Failed word matching always retains the complete readable prompt',()=>{
  const {svg,scene}=voiceSVG(example,[],example.text);assert.ok(svg.includes('class="prompt-svg"'));assert.ok(svg.includes(example.text));assert.ok(svg.includes('without word alignment'));assert.equal(scene,null);
@@ -47,6 +47,11 @@ test('A stretched, paused delivery keeps the closing phrase together on the seco
   'they tried to keep a secret','but somehow everyone found out'
  ]);
  assert.ok(scene.frame(null).glyphs.some(g=>g.sx>1.3),'duration stretching remains visible');
+});
+test('A transcribed word boundary difference does not create an unnecessary third desktop row',()=>{
+ const a=delivery('they tried to keep a secret but somehow every one found out',1),scene=createScene(a,a.words,a.text);
+ assert.equal(scene.rows.length,2);
+ for(const row of scene.frame(null).layouts)for(const w of row.words)assert.ok(w.x>=32&&w.x+w.currentWidth<=scene.W-32+1e-6);
 });
 test('All five sentences keep stable line breaks and fit throughout varied deliveries on desktop and mobile',()=>{
  const sentences=[example.text,'You really thought I would leave without saying goodbye?','I ordered the coffee, but she asked for a cup of tea.','When the rain finally stopped, we walked home together.','I never said you had to finish it today.'];

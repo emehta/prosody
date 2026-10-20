@@ -1,7 +1,7 @@
 class Capture extends AudioWorkletProcessor {
  constructor(options){
   super();this.recording=false;this.chunk=new Float32Array(2048);this.offset=0;this.total=0;
-  this.maxSamples=options?.processorOptions?.maxSamples??240000;
+  this.maxSamples=options?.processorOptions?.maxSamples??480000;
   this.port.onmessage=({data})=>{
    if(data.type==='start'){this.id=data.id;this.offset=0;this.total=0;this.recording=true;this.started=false;}
    if(data.type==='stop'&&data.id===this.id)this.stop();

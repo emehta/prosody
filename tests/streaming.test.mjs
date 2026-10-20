@@ -14,3 +14,14 @@ test('Short imports use the whole clip and preserve the expected frame count',as
 test('Cancelled streams do not publish results',async()=>{
  const stream=new StreamingCTC(fake);stream.cancel();await assert.rejects(()=>stream.finish(new Float32Array(16000)),/Cancelled/);
 });
+test('Thirty-second imports preserve every frame while keeping individual inference windows bounded',async()=>{
+ const lengths=[],audio=new Float32Array(16000*30),stream=new StreamingCTC(async x=>{lengths.push(x.length);return fake(x);});
+ const r=await stream.finish(audio);assert.equal(r.dims[1],1499);assert.equal(r.data.length,1499*3);
+ assert.ok(lengths.length>=14);assert.ok(Math.max(...lengths)<16000*3.6);
+});
+test('Live speech emits provisional blocks before capture finishes and cancels cleanly',async()=>{
+ const blocks=[],stream=new StreamingCTC(fake,480000,{blockFrames:25,rightContext:4400,onBlock:r=>blocks.push(r.dims[1])});
+ for(let i=0;i<16000*2;i+=1600){stream.append(new Float32Array(1600));await stream.pump();}
+ assert.ok(blocks.length>=2);assert.ok(blocks.every((n,i)=>!i||n>blocks[i-1]));
+ stream.cancel();await assert.rejects(()=>stream.finish(new Float32Array(32000)),/Cancelled/);
+});

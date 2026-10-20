@@ -1,4 +1,5 @@
-import {alignWindowCTC,MODEL,MODEL_REVISION} from './analysis.js?v=7';
+import {alignWindowCTC,transcribeWindowCTC,alignPrefixCTC,MODEL,MODEL_REVISION,RATE} from './analysis.js?v=8';
+import {MAX_SECONDS} from './limits.js?v=8';
 import {StreamingCTC} from './streaming.js';
 let enginePromise=null,inferenceQueue=Promise.resolve(),session=null,latestId=-1;
 async function engine(){
@@ -23,20 +24,28 @@ function infer(samples){
     try{return {data:logits.data.slice(),dims:[...logits.dims]};}finally{logits.dispose?.();}
   });inferenceQueue=job;return job;
 }
+function newSession(id,text='',live=false){
+ const next=new StreamingCTC(infer,MAX_SECONDS*RATE,live?{blockFrames:25,rightContext:4400,onBlock:async emissions=>{
+  if(session!==next||id!==latestId)return;
+  const {vocab}=await engine(),result=alignPrefixCTC(emissions.data,emissions.dims,text,vocab,emissions.dims.at(-2)*.02);
+  if(result&&session===next&&id===latestId)self.postMessage({type:'live-aligned',id,result});
+ }}:{});
+ return next;
+}
 self.onmessage=async({data})=>{
   const {type,id,samples,text,offset=0,playbackDuration=samples?.length/16000}=data;
   try{
     if(type==='load'){await engine();return;}
     if(type==='cancel'){session?.cancel();session=null;latestId=id;return;}
-    if(type==='start'){session?.cancel();latestId=id;session=new StreamingCTC(infer);return;}
+    if(type==='start'){session?.cancel();latestId=id;session=newSession(id,text,data.live);return;}
     if(type==='chunk'){if(id===latestId)session?.append(samples);return;}
     if(type==='analyze'){
       const started=performance.now();
-      if(!session||id!==latestId){session?.cancel();session=new StreamingCTC(infer);latestId=id;}
+      if(!session||id!==latestId){session?.cancel();session=newSession(id);latestId=id;}
       const current=session,emissions=await current.finish(samples);
       if(current!==session||id!==latestId)return;
       const {vocab}=await engine();let alignment;
-      try{alignment=alignWindowCTC(emissions.data,emissions.dims,text,vocab,samples.length/16000,offset,playbackDuration);}
+      try{alignment=data.transcribe?transcribeWindowCTC(emissions.data,emissions.dims,vocab,samples.length/RATE,offset,playbackDuration):alignWindowCTC(emissions.data,emissions.dims,text,vocab,samples.length/RATE,offset,playbackDuration);}
       catch(error){if(/too short/i.test(error.message))alignment={words:[],decoded:'',match:0,reason:'too-short'};else throw error;}
       self.postMessage({type:'aligned',id,result:alignment,milliseconds:performance.now()-started,processedDuringRecording:emissions.processedBeforeFinish});session=null;
     }

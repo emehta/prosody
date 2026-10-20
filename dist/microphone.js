@@ -1,3 +1,4 @@
+import {MAX_SECONDS} from './limits.js?v=8';
 // Native-rate recording. Arming opens an already-permitted input without
 // retaining audio; capture starts only after an explicit start command.
 export class Microphone {
@@ -8,7 +9,7 @@ export class Microphone {
  }
  prepare(){
   if(this.prepared)return this.prepared;const ctx=this.context??=this.createContext();
-  this.prepared=ctx.audioWorklet.addModule(new URL('./capture.js?v=7',import.meta.url));
+  this.prepared=ctx.audioWorklet.addModule(new URL('./capture.js?v=8',import.meta.url));
   this.prepared.catch(()=>{if(this.context===ctx)this.prepared=null;});return this.prepared;
  }
  arm(){
@@ -20,7 +21,7 @@ export class Microphone {
    try{
     const [,mic]=await Promise.all([prepared,acquired]);if(epoch!==this.epoch)return false;
     this.source?.disconnect();this.capture?.disconnect();this.stream=mic;
-    this.capture=this.createNode(ctx,{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],processorOptions:{maxSamples:ctx.sampleRate*15}});
+    this.capture=this.createNode(ctx,{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],processorOptions:{maxSamples:ctx.sampleRate*MAX_SECONDS}});
     this.capture.port.onmessage=({data})=>{
      if(data.id!==this.id)return;
      if(data.started)this.callbacks?.onStart?.(ctx.sampleRate);

@@ -1,21 +1,22 @@
-import {wordWidth,LETTERS} from './lettering.js?v=7';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=7';
-import {quantile} from './analysis.js?v=7';
+import {wordWidth,LETTERS} from './lettering.js?v=8';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=8';
+import {quantile} from './analysis.js?v=8';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const ease=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
 const f=n=>Number(n).toFixed(2);
 export function createScene(analysis,words,text,small=false){
- const W=small?600:1100,pad=32,inner=W-pad*2,preferredScale=small?1.12:1.36,rowH=252,minGap=25;
- const source=text.split(/\s+/),speed=quantile(words.map(w=>(w.end-w.start)/Math.max(1,wordWidth(w.word))),.5)||.002;
+ const W=small?600:1100,pad=40,inner=W-pad*2,preferredScale=small?1.12:1.36,rowH=294,minGap=25;
+ const source=text.split(/\s+/),speed=quantile(words.filter(w=>!w.pending).map(w=>(w.end-w.start)/Math.max(1,wordWidth(w.word))),.5)||.002;
  const items=words.map((w,i)=>{
   const display=w.word+(source[i]?.match(/[,.?]$/)?.[0]||''),natural=wordWidth(display,preferredScale);
-  const stretch=clamp(Math.sqrt(((w.end-w.start)/Math.max(1,wordWidth(w.word)))/speed),.76,1.62);
-  return {...w,index:i,display,natural,stretch,width:natural*Math.max(1,stretch),gap:i?clamp((w.start-words[i-1].end)*105,25,85):0,clause:source[i]?.endsWith(',')};
+  const relative=((w.end-w.start)/Math.max(1,wordWidth(w.word)))/speed;
+  const stretch=w.pending?1:clamp(relative**.65,.62,1.95),height=w.pending?1:clamp(relative**.32,.76,1.45);
+  return {...w,index:i,display,natural,stretch,height,width:natural*Math.max(1,stretch),gap:i?(!w.pending&&!words[i-1].pending?clamp((w.start-words[i-1].end)*105,25,85):minGap):0,clause:source[i]?.endsWith(',')};
  });
  // Choose line breaks from ordinary lettering, independent of the delivery.
  // Reserve the widest animated pose, fitting the type uniformly and compressing
  // extra pause spacing instead of sending a short phrase onto another row.
- const rows=balanceRows(items.map(w=>({...w,width:w.natural,gap:minGap})),inner);
+ const rows=balanceRows(items.map(w=>({...w,width:w.natural,gap:minGap})),inner*1.1);
  const fit=Math.min(1,...rows.map(row=>(inner-(row.length-1)*minGap)/row.reduce((n,w)=>n+items[w.index].width,0)));
  const scale=preferredScale*fit;
  rows.forEach((row,r)=>{
@@ -26,7 +27,7 @@ export function createScene(analysis,words,text,small=false){
   let start=row[0].start,end=row.at(-1).end;
   start=r?(rows[r-1].at(-1).end+start)/2:Math.max(0,Math.min(start,analysis.speechStart));
   end=r<rows.length-1?(end+rows[r+1][0].start)/2:Math.min(analysis.duration,Math.max(end,analysis.speechEnd));
-  row.start=start;row.end=end;row.pitch=pitchAnchors(analysis,row,start,end);row.top=r*rowH;row.base=row.top+148;
+  row.start=start;row.end=end;row.pitch=pitchAnchors(analysis,row,start,end);row.top=r*rowH;row.base=row.top+182;
  });
  const height=pitchHeight(analysis);
  function frame(time=null){
@@ -68,9 +69,9 @@ export function createScene(analysis,words,text,small=false){
      const angle=clamp(slope*.45+(target-row.base)/10,-15,15);
      const letterTime=w.start+(i/Math.max(1,w.display.length))*(w.end-w.start)*.72;
      const progress=full?1:ease((time-letterTime)/.16);
-     const y=row.base+(target-row.base)*progress,rotation=angle*progress;
-     const transform=`translate(${f(center)},${f(y)}) rotate(${f(rotation)}) scale(${f(scale*w.sx)},${f(scale)}) translate(${f(-width/2)},0)`;
-     glyphs.push({key:`${w.index}-${i}`,word:w.index,char,transform,x:center,y,rotation,sx:w.sx,progress});offset+=width+6;
+     const y=row.base+(target-row.base)*progress,rotation=angle*progress,sy=1+(w.height-1)*progress;
+     const transform=`translate(${f(center)},${f(y)}) rotate(${f(rotation)}) scale(${f(scale*w.sx)},${f(scale*sy)}) translate(${f(-width/2)},0)`;
+     glyphs.push({key:`${w.index}-${i}`,word:w.index,char,transform,x:center,y,rotation,sx:w.sx,sy,progress});offset+=width+6;
     });
    }
    analysis.pauses.forEach((p,i)=>{

@@ -1,6 +1,6 @@
-import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=7';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=7';
-import {createScene} from './scene.js?v=7';
+import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=8';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=8';
+import {createScene} from './scene.js?v=8';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 export function promptSVG(text,small=false){
  const W=small?600:1100,pad=32,scale=small?1.12:1.36;
@@ -10,14 +10,17 @@ export function promptSVG(text,small=false){
  rows.forEach((row,r)=>{let x=(W-row.reduce((n,w)=>n+w.width+w.gap,0))/2;for(const w of row){x+=w.gap;parts.push(wordPaths(w.word,x,r*145+105,scale));x+=w.width;}});return parts.join('')+'</svg>';
 }
 function unalignedSVG(analysis,text,small){
+ return promptSVG(text,small)+pitchSVG(analysis,small);
+}
+export function pitchSVG(analysis,small=false){
  const W=small?600:1100,pitch=pitchAnchors(analysis,[],analysis.speechStart,analysis.speechEnd),height=pitchHeight(analysis,28.8);
  const points=pitch.map(p=>({x:35+(p.t-analysis.speechStart)/Math.max(.01,analysis.speechEnd-analysis.speechStart)*(W-70),y:45-height(p.hz)}));
- return promptSVG(text,small)+`<svg class="unmatched-contour" viewBox="0 0 ${W} 90" role="img" aria-label="Pitch of this take, without word alignment"><path class="pitch-line" d="${curve(points).d}"/></svg>`;
+ return `<svg class="unmatched-contour" viewBox="0 0 ${W} 90" role="img" aria-label="Pitch of this take, without word alignment"><path class="pitch-line" d="${curve(points).d}"/></svg>`;
 }
 export function voiceSVG(analysis,words,text,small=false,{time=null}={}){
  if(!words.length)return {svg:unalignedSVG(analysis,text,small),rows:[],scene:null};
  const scene=createScene(analysis,words,text,small),frame=scene.frame(time),{W,H,rowH}=scene;
- const parts=[`<svg xmlns="http://www.w3.org/2000/svg" class="voice-svg" id="voice-svg" viewBox="0 -12 ${W} ${H+12}" role="group" aria-label="Pitch contour and spoken words"><title>${esc(text)}</title><desc>Words widen with relative duration. Letter height and tilt follow measured pitch. Playback reveals these movements and the shared contour as each word is spoken.</desc>`];
+ const parts=[`<svg xmlns="http://www.w3.org/2000/svg" class="voice-svg" id="voice-svg" viewBox="0 -12 ${W} ${H+12}" role="group" aria-label="Pitch contour and spoken words"><title>${esc(text)}</title><desc>Letters widen and grow taller with relative duration. Letter position and tilt follow measured pitch. Playback reveals these movements and the shared contour as each word is spoken.</desc>`];
  for(const layout of frame.layouts){
   const r=layout.r,top=r*rowH,id=`contour-${r}`;
   parts.push(`<defs><path id="${id}" d="${layout.d}"/><clipPath id="reveal-${r}"><rect data-reveal="${r}" x="0" y="${top-12}" width="${layout.reveal}" height="${rowH+24}"/></clipPath></defs><g clip-path="url(#reveal-${r})"><use href="#${id}" class="pitch-line"/>`);

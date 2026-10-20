@@ -1,6 +1,6 @@
 # GitHub Pages release verification
 
-63 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
+77 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
 
 ## Pitch and sentence endings
 
@@ -31,3 +31,15 @@ The five sentences retain stable wrapping across eight varied deliveries at desk
 ## Limits
 
 Pitch, alignment and prominence are estimates. Unvoiced consonants and silence have no measured fundamental frequency; the displayed connection is interpolation. Strong energy is an acoustic cue, not a linguistic stress classifier. Human microphone hardware and this user's accent have not been scored against annotated ground truth. The pinned speech model downloads on first use; recording and acoustic analysis are available while it opens. Audio stays in the browser.
+
+
+## 21 October 2026 interface, upload and live release
+
+- Duration now changes both horizontal and vertical scale. Normal-height, flat starting poses and readable wrapping remain covered, including all five sentences at desktop/mobile sizes across varied deliveries.
+- The header measurements, vertical sentence menu, sun/moon controls, squarer studio/guide cards and always-visible analysis notes were inspected at 436 px and 1280 px widths. The desktop guide is 780 px wide. Theme choice survived a reload. The guide contains neither a details dropdown nor an example action.
+- The actual browser waveform editor opened a 45-second source, moved a complete 30-second window by dragging its body, and resized both handles. Entered 34.00–42.00 produced an exact 8.000-second preview and confirmed crop. The speech at 35 seconds was transcribed independently of the selected sample; the model rendered “good by” for synthetic “goodbye”, demonstrating that recognition remains imperfect.
+- Canceling the editor preserved the preceding transcript, recording and controls. A full 15.00–45.00 selection was also submitted to the real browser speech model. Automated tests require all 1,499 CTC frames of a 30-second import and bounded individual inference windows.
+- A synthetic MediaStream exercised the actual AudioWorklet and live UI without accessing the human microphone. Capture acknowledged after 11.5 ms; the first live acoustic result arrived after 76.5 ms. The app published 351 acoustic updates and all 11 recognized words while listening, stopped at exactly 30.000 seconds of native 48 kHz PCM, and retained replay. Final alignment processed 29.5 seconds before stop; the remaining complete result took 398.6 ms. These are one local synthetic check, not device-wide or human-microphone performance guarantees.
+- Selection tests cover source bounds, crossing handles, the 30-second maximum, short clips, native sample precision and waveform peaks at the final sample. Live tests cover voiced and silent input, timestamp continuity, conservative prefix recognition, untouched future words, cancellation, and actual-speech upload transcription.
+
+A further wrapping regression test covers a recognized “every one” boundary without forcing a third desktop row. Upload inference now receives only the audible selection after quiet-edge trimming, so long waits are not sent through the model. Pending upload transcription uses shimmer placeholders and measured pitch rather than displaying the selected sample as though it were the uploaded text.
