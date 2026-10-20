@@ -1,0 +1,76 @@
+import {wordWidth,LETTERS} from './lettering.js?v=5';
+import {balanceRows,curve,pitchAnchors} from './contour.js?v=5';
+import {quantile} from './analysis.js?v=5';
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const ease=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
+const f=n=>Number(n).toFixed(2);
+export function createScene(analysis,words,text,small=false){
+ const W=small?600:1100,pad=32,inner=W-pad*2,preferredScale=small?1.12:1.36,rowH=252,minGap=25;
+ const source=text.split(/\s+/),speed=quantile(words.map(w=>(w.end-w.start)/Math.max(1,wordWidth(w.word))),.5)||.002;
+ const items=words.map((w,i)=>{
+  const display=w.word+(source[i]?.match(/[,.?]$/)?.[0]||''),natural=wordWidth(display,preferredScale);
+  const stretch=clamp(Math.sqrt(((w.end-w.start)/Math.max(1,wordWidth(w.word)))/speed),.76,1.62);
+  return {...w,index:i,display,natural,stretch,width:natural*Math.max(1,stretch),gap:i?clamp((w.start-words[i-1].end)*105,25,85):0,clause:source[i]?.endsWith(',')};
+ });
+ // Choose line breaks from ordinary lettering, independent of the delivery.
+ // Reserve the widest animated pose, fitting the type uniformly and compressing
+ // extra pause spacing instead of sending a short phrase onto another row.
+ const rows=balanceRows(items.map(w=>({...w,width:w.natural,gap:minGap})),inner);
+ const fit=Math.min(1,...rows.map(row=>(inner-(row.length-1)*minGap)/row.reduce((n,w)=>n+items[w.index].width,0)));
+ const scale=preferredScale*fit;
+ rows.forEach((row,r)=>{
+  const reserved=row.reduce((n,w)=>n+items[w.index].width*fit,0),baseGaps=(row.length-1)*minGap;
+  const extraGaps=row.reduce((n,w,i)=>n+(i?items[w.index].gap-minGap:0),0);
+  const gapFit=extraGaps?clamp((inner-reserved-baseGaps)/extraGaps,0,1):1;
+  row.forEach((w,i)=>{w.natural*=fit;w.width=items[w.index].width*fit;w.gap=i?minGap+(items[w.index].gap-minGap)*gapFit:0;});
+  let start=row[0].start,end=row.at(-1).end;
+  start=r?(rows[r-1].at(-1).end+start)/2:Math.max(0,start-.04);
+  end=r<rows.length-1?(end+rows[r+1][0].start)/2:Math.min(analysis.duration,end+.04);
+  row.start=start;row.end=end;row.pitch=pitchAnchors(analysis,row,start,end);row.top=r*rowH;row.base=row.top+148;
+ });
+ const range=Math.max(5,12*Math.log2((analysis.highHz||220)/(analysis.lowHz||120)));
+ function frame(time=null){
+  const full=time===null,layouts=[],glyphs=[],marks=[],pauses=[];
+  rows.forEach((row,r)=>{
+   const poses=row.map(w=>{const progress=full?1:ease((time-w.start)/Math.max(.08,Math.min(.22,w.end-w.start)));return {...w,sx:1+(w.stretch-1)*progress,progress};});
+   const used=poses.reduce((n,w)=>n+w.natural*w.sx+w.gap,0);let x=pad+(inner-used)/2;
+   const anchors=[];
+   for(const w of poses){x+=w.gap;w.x=x;w.currentWidth=w.natural*w.sx;anchors.push({t:w.start,x},{t:w.end,x:x+w.currentWidth});x+=w.currentWidth;}
+   anchors.unshift({t:row.start,x:poses[0].x});anchors.push({t:row.end,x:poses.at(-1).x+poses.at(-1).currentWidth});
+   const xTime=t=>{
+    if(t<=anchors[0].t)return anchors[0].x;if(t>=anchors.at(-1).t)return anchors.at(-1).x;
+    let k=1;while(k<anchors.length-1&&anchors[k].t<t)k++;
+    const a=anchors[k-1],b=anchors[k];return a.x+(b.x-a.x)*clamp((t-a.t)/Math.max(.0001,b.t-a.t),0,1);
+   };
+   const points=[];
+   for(const p of row.pitch){
+    const point={x:xTime(p.t),y:row.base+15-clamp(12*Math.log2(p.hz/(analysis.medianHz||160))/range,-.6,.6)*82};
+    if(points.length&&point.x-points.at(-1).x<.01)points[points.length-1]=point;else points.push(point);
+   }
+   const contour=curve(points),endX=full?W:time<=row.start?0:xTime(Math.min(time,row.end));
+   const layout={r,d:contour.d,start:row.start,end:row.end,xTime,reveal:endX,words:poses};layouts.push(layout);
+   for(const w of poses){
+    const middle=w.x+w.currentWidth/2,markWidth=Math.min(w.currentWidth*.85,Math.max(7,(w.end-w.start)*125));
+    marks.push({index:w.index,x:middle-markWidth/2,width:markWidth,top:row.top,opacity:full?1:ease((time-w.start)/.10)});
+    let offset=0;
+    [...w.display.toLowerCase()].forEach((char,i)=>{
+     const glyph=LETTERS[char],width=glyph?.width??12,center=w.x+(offset+width/2)*scale*w.sx;
+     const target=(contour.at(center)??row.base+15)-15;
+     const slope=Math.atan2((contour.at(center+18)??target)-(contour.at(center-18)??target),36)*180/Math.PI;
+     const angle=clamp(slope*.45+(target-row.base)/10,-15,15);
+     const letterTime=w.start+(i/Math.max(1,w.display.length))*(w.end-w.start)*.72;
+     const progress=full?1:ease((time-letterTime)/.16);
+     const y=row.base+(target-row.base)*progress,rotation=angle*progress;
+     const transform=`translate(${f(center)},${f(y)}) rotate(${f(rotation)}) scale(${f(scale*w.sx)},${f(scale)}) translate(${f(-width/2)},0)`;
+     glyphs.push({key:`${w.index}-${i}`,word:w.index,char,transform,x:center,y,rotation,sx:w.sx,progress});offset+=width+6;
+    });
+   }
+   analysis.pauses.forEach((p,i)=>{
+    if(p.end<row.start||p.start>row.end)return;
+    const x1=xTime(Math.max(row.start,p.start)),x2=xTime(Math.min(row.end,p.end));pauses.push({key:`${r}-${i}`,x:x1,width:Math.max(0,x2-x1),top:row.top,r});
+   });
+  });
+  return {layouts,glyphs,marks,pauses};
+ }
+ return {W,H:rows.length*rowH+25,rows,rowH,scale,frame};
+}
