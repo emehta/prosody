@@ -36,3 +36,13 @@ test('Trailing quiet is removed without removing the last sound or an internal p
  const rate=16000,signal=new Float32Array(rate*5);signal.set(sine(rate,.6,170,.2),rate);signal.set(sine(rate,.6,170,.2),Math.round(rate*2.5));
  const trim=leadingTrim(signal);assert.ok(trim.seconds>.8&&trim.seconds<1);assert.ok(trim.endIndex/rate>=3.1&&trim.endIndex/rate<3.4);assert.ok(trim.endIndex-trim.index>rate*2);
 });
+
+test('Upload inference retains soft-sound context without restoring a long wait to playback',async()=>{
+ const {uploadAnalysisWindow}=await import('../dist/audio.js');
+ const samples=new Float32Array(16000*30),trim={index:16000*20,endIndex:16000*24};
+ const window=uploadAnalysisWindow(samples,trim);
+ assert.equal(window.offset,.6);assert.equal(window.samples.length,16000*5.2);
+ assert.equal(trim.index,16000*20);assert.equal(trim.endIndex,16000*24);
+ const edge=uploadAnalysisWindow(samples,{index:0,endIndex:16000*30});
+ assert.equal(edge.offset,0);assert.equal(edge.samples.length,samples.length);
+});

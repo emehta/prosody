@@ -1,6 +1,6 @@
 # GitHub Pages release verification
 
-77 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
+78 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
 
 ## Pitch and sentence endings
 
@@ -42,4 +42,6 @@ Pitch, alignment and prominence are estimates. Unvoiced consonants and silence h
 - A synthetic MediaStream exercised the actual AudioWorklet and live UI without accessing the human microphone. Capture acknowledged after 11.5 ms; the first live acoustic result arrived after 76.5 ms. The app published 351 acoustic updates and all 11 recognized words while listening, stopped at exactly 30.000 seconds of native 48 kHz PCM, and retained replay. Final alignment processed 29.5 seconds before stop; the remaining complete result took 398.6 ms. These are one local synthetic check, not device-wide or human-microphone performance guarantees.
 - Selection tests cover source bounds, crossing handles, the 30-second maximum, short clips, native sample precision and waveform peaks at the final sample. Live tests cover voiced and silent input, timestamp continuity, conservative prefix recognition, untouched future words, cancellation, and actual-speech upload transcription.
 
-A further wrapping regression test covers a recognized “every one” boundary without forcing a third desktop row. Upload inference now receives only the audible selection after quiet-edge trimming, so long waits are not sent through the model. Pending upload transcription uses shimmer placeholders and measured pitch rather than displaying the selected sample as though it were the uploaded text.
+A further wrapping regression test covers a recognized “every one” boundary without forcing a third desktop row. Upload inference now receives the audible selection with 600 ms of analysis-only context on either side after quiet-edge trimming, so long waits are not sent through the model. Pending upload transcription uses shimmer placeholders and measured pitch rather than displaying the selected sample as though it were the uploaded text.
+
+A real cached-model comparison reproduced an initial “ou” when inference was cropped directly to playback. Adding 600 ms of context restored “you” and retained the final “bye” in the synthetic question. This context is never added to playback or preview. A sample-level test guards the separation between model context and the selected playback bounds.

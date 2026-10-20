@@ -1,5 +1,5 @@
 import {RATE,summarizeWords,encodeWav} from './analysis.js?v=8';
-import {AnalysisResampler,analysisSamples,joinSamples,leadingTrim} from './audio.js?v=8';
+import {AnalysisResampler,analysisSamples,joinSamples,leadingTrim,uploadAnalysisWindow} from './audio.js?v=9';
 import {promptSVG,voiceSVG,bindMotion,pitchSVG} from './view.js?v=8';
 import {Microphone} from './microphone.js?v=8';
 import {MAX_SECONDS,MAX_FILE_BYTES} from './limits.js?v=8';
@@ -162,7 +162,7 @@ function acceptAudio(native,rate,analyzed=analysisSamples(native,rate)){
  const nativeStart=Math.round(offset*rate),nativeEnd=Math.min(native.length,Math.round(trim.endIndex/RATE*rate)),playback=native.subarray(nativeStart,nativeEnd),signalSamples=analyzed.subarray(trim.index,trim.endIndex);takeDuration=signalSamples.length/RATE;
  // Uploads have no previously streamed emissions to reuse. Infer only the
  // audible selection, avoiding expensive model work on already-trimmed waits.
- if(transcribing){currentAnalysis=signalSamples;offset=0;}
+ if(transcribing){const window=uploadAnalysisWindow(analyzed,trim);currentAnalysis=window.samples;offset=window.offset;}
  result=null;words=[];pendingAlignment=null;pending=true;mode='processing';status('Analyzing recording');poseTime=null;message();
  if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=URL.createObjectURL(new Blob([encodeWav(playback,rate)],{type:'audio/wav'}));audio.src=objectUrl;
  $('visualization').dataset.trimmedSeconds=trim.seconds.toFixed(3);$('visualization').dataset.playbackRate=String(rate);$('visualization').dataset.rawDuration=(native.length/rate).toFixed(3);

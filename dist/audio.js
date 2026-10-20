@@ -42,6 +42,14 @@ export function joinSamples(chunks){
 }
 export function analysisSamples(samples,rate){const converter=new AnalysisResampler(rate);return joinSamples([converter.push(samples),converter.finish()]);}
 
+// Retain quiet acoustic context for the recognizer while playback still uses
+// the exact consonant-protected trim. A cropped model window needs more context
+// than the listener needs to hear; avoid degrading soft initial/final sounds.
+export function uploadAnalysisWindow(samples,trim,rate=16000){
+ const context=Math.round(rate*.6),start=Math.max(0,trim.index-context),end=Math.min(samples.length,trim.endIndex+context);
+ return {samples:samples.subarray(start,end),offset:(trim.index-start)/rate};
+}
+
 // Trim the quiet edges without changing the PCM between them. A low-threshold look-back and 60 ms
 // cushion protect initial fricatives and stop releases. Internal pauses survive.
 export function leadingTrim(samples,rate=16000){
