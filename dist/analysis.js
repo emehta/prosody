@@ -53,7 +53,7 @@ export function analyze(samples, rate = RATE) {
     const n=end-i;energy.push({t:(i+end)/2/rate,start:i/rate,end:end/rate,rms:Math.sqrt(Math.max(0,power/n-(sum/n)**2))});
   }
   const levels=energy.map(f=>f.rms), noise=quantile(levels,.15), loud=quantile(levels,.90);
-  const threshold=Math.max(.0015,Math.min(loud*.22,noise*3));
+  const threshold=Math.max(.000001,Math.min(loud*.22,noise*3));
   const starts=[];for(let i=0;i+WINDOW<=samples.length;i+=HOP)starts.push(i);
   const finalStart=samples.length-WINDOW;
   if(finalStart>=0&&starts.at(-1)!==finalStart)starts.push(finalStart);
@@ -76,7 +76,7 @@ export function analyze(samples, rate = RATE) {
 }
 
 export function describeAcoustics(frames,energy,duration,peak=0,clipping=0,threshold=null){
-  if(threshold===null){const levels=energy.map(f=>f.rms);threshold=Math.max(.0015,Math.min(quantile(levels,.9)*.22,quantile(levels,.15)*3));}
+  if(threshold===null){const levels=energy.map(f=>f.rms);threshold=Math.max(.000001,Math.min(quantile(levels,.9)*.22,quantile(levels,.15)*3));}
   frames=frames.map(f=>f.rms>=threshold?f:{...f,hz:null,confidence:0});
   const silent=[]; let start=null;
   energy.forEach((f,i)=>{
@@ -194,7 +194,7 @@ export function summarizeWords(words, analysis) {
     const pitch=w.hz&&analysis.medianHz ? Math.max(-1,Math.min(1,12*Math.log2(w.hz/analysis.medianHz)/8)) : 0;
     const length=Math.max(-1,Math.min(1,Math.log2(Math.max(.01,w.length)/lengthMedian)));
     const prominence=Math.max(0,Math.min(1,.5+energy*.45+pitch*.15+length*.15));
-    return {...w,prominence,uncertain:w.confidence<.45};
+    return {...w,prominence,uncertain:w.uncertain||w.confidence<.45};
   });
 }
 

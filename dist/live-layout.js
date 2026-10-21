@@ -1,11 +1,11 @@
-import {wordWidth} from './lettering.js?v=8';
-import {quantile} from './analysis.js?v=8';
+import {wordWidth} from './lettering.js?v=11';
+import {quantile} from './analysis.js?v=11';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 // Line breaks are committed as speech advances. New words fill from the left;
 // adding another line never rebalances, recenters or resizes earlier lines.
 export class LiveLayout{
  constructor(){this.breaks=[];this.metrics=[];this.serial=0;}
- update(words,analysis,small=false){
+ update(words,analysis,small=false,{maxRows=4}={}){
   if(!words.length)return {words:[],lastRow:0};
   const speed=quantile(words.map(w=>(w.end-w.start)/Math.max(1,wordWidth(w.word))),.5)||.003;
   const scale=small?1.12:1.36,inner=(small?600:1100)-80;
@@ -27,6 +27,6 @@ export class LiveLayout{
    }
    w.liveRow=row;previous=w;
   }
-  return {words:items.filter(w=>w.liveRow>=lastRow-3),lastRow};
+  return {words:items.filter(w=>w.liveRow>lastRow-maxRows),lastRow};
  }
 }

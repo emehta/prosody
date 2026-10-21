@@ -1,20 +1,24 @@
-import {analyze,describeAcoustics,RATE,HOP} from './analysis.js?v=8';
+import {analyze,describeAcoustics,RATE,HOP} from './analysis.js?v=11';
+import {dictationActivity} from './dictation.js?v=11';
 import {SampleRing} from './sample-ring.js';
 
 // Revisit only a 640 ms overlap, retain the most recent 30 s of measurements.
 // Audio positions remain absolute across ring-buffer wraps and quiet passages.
 export class LiveAcoustics{
- constructor(){this.audio=new SampleRing(RATE);this.last=0;this.frames=[];this.energy=[];this.peaks=[];}
+ constructor(){this.audio=new SampleRing(RATE);this.last=0;this.frames=[];this.energy=[];this.peaks=[];this.activeUntil=0;}
  append(samples,final=false){
   this.audio.append(samples);const length=this.audio.end;
   if(!final&&(length-this.last<RATE*.08||length<640))return null;
   if(length<640)return null;this.last=length;
   const begin=Math.max(0,Math.floor((length-RATE*.64)/HOP)*HOP),offset=begin/RATE,a=analyze(this.audio.slice(begin,length)),cutoff=Math.max(0,length/RATE-30);
+  const activity=dictationActivity(this.audio.slice(begin,length));
+  if(activity.speech)this.activeUntil=Math.max(this.activeUntil,offset+activity.end/RATE);
+  if(a.voicedFraction>.08)this.activeUntil=Math.max(this.activeUntil,offset+a.speechEnd);
   const first=a.frames[0]?.t+offset;
   this.frames=this.frames.filter(f=>f.t>=cutoff&&f.t<first-1e-7).concat(a.frames.map(f=>({...f,t:f.t+offset})));
   this.energy=this.energy.filter(f=>f.start>=cutoff&&f.start<offset-1e-7).concat(a.energy.map(f=>({...f,t:f.t+offset,start:f.start+offset,end:f.end+offset})));
   this.peaks=this.peaks.filter(p=>p.end>cutoff);this.peaks.push({end:length/RATE,peak:a.peak,clipping:a.clipping});
-  return {...describeAcoustics(this.frames,this.energy,length/RATE,Math.max(...this.peaks.map(p=>p.peak)),Math.max(...this.peaks.map(p=>p.clipping))),windowStart:cutoff};
+  return {...describeAcoustics(this.frames,this.energy,length/RATE,Math.max(...this.peaks.map(p=>p.peak)),Math.max(...this.peaks.map(p=>p.clipping))),windowStart:cutoff,activeUntil:this.activeUntil};
  }
 }
 

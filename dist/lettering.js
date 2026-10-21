@@ -3,6 +3,20 @@ export const LETTERS={"a":{"width":29.147,"paths":["M8.849 -22.685 C6.015 -21.14
 LETTERS[',']={width:5,paths:['M3 -1 C4 4 2 7 0 9'],top:-1,bottom:9};
 LETTERS['.']={width:4,paths:['M1 0 L1 -0.1'],top:-.1,bottom:0};
 LETTERS['?']={width:18,paths:['M0 -45 C1 -62 24 -61 19 -44 C17 -35 8 -32 9 -21 L9 -16','M9 0 L9 -0.1'],top:-60,bottom:0};
+// Numerals returned by dictation use the same single-weight vector strokes.
+const digits={
+ '0':['M11 -37 C-3 -38 -3 0 10 0 C25 0 25 -36 11 -37'],
+ '1':['M2 -29 L11 -38 L10 0 M3 0 L19 0'],
+ '2':['M0 -29 C2 -44 25 -40 21 -26 C18 -15 3 -8 0 0 L23 0'],
+ '3':['M0 -34 C10 -42 25 -37 19 -25 C16 -20 10 -19 7 -20 C25 -24 29 -3 15 0 C8 2 3 -1 0 -5'],
+ '4':['M19 -38 L0 -12 L25 -12 M19 -38 L18 0'],
+ '5':['M23 -37 L4 -37 L2 -19 C26 -28 29 -2 14 0 C7 1 2 -1 0 -5'],
+ '6':['M21 -36 C5 -42 -7 -4 8 0 C23 5 30 -23 15 -24 C7 -25 3 -19 1 -13'],
+ '7':['M0 -37 L25 -37 C16 -25 11 -14 9 0'],
+ '8':['M11 -20 C-8 -24 1 -42 15 -37 C29 -32 21 -23 11 -20 C-6 -17 -2 3 13 0 C29 -3 26 -18 11 -20'],
+ '9':['M21 -23 C19 -2 -1 -18 2 -30 C5 -44 27 -38 22 -18 C19 -5 15 0 5 2']
+};
+for(const [digit,paths] of Object.entries(digits))LETTERS[digit]={width:25,paths,top:-40,bottom:3};
 export function wordWidth(word,scale=1){return [...word.toLowerCase()].reduce((n,c)=>n+(LETTERS[c]?.width??12)+6,0)*scale;}
 export function wordPaths(word,x,baseline,scale=1,attributes=''){
  let offset=0;const pieces=[];

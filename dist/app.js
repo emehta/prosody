@@ -1,24 +1,26 @@
-import {RATE,summarizeWords,encodeWav} from './analysis.js?v=8';
-import {AnalysisResampler,analysisSamples,joinSamples,leadingTrim,uploadAnalysisWindow} from './audio.js?v=9';
-import {promptSVG,voiceSVG,bindMotion,pitchSVG,liveTailSVG} from './view.js?v=10';
-import {Microphone} from './microphone.js?v=10';
-import {MAX_SECONDS,MAX_FILE_BYTES} from './limits.js?v=8';
-import {ClipEditor} from './clip-editor.js?v=8';
-import {liveView,recentLiveWords,liveReplayAnalysis} from './live-analysis.js?v=10';
+import {RATE,summarizeWords,encodeWav} from './analysis.js?v=11';
+import {AnalysisResampler,analysisSamples,joinSamples,leadingTrim,uploadAnalysisWindow} from './audio.js?v=11';
+import {promptSVG,voiceSVG,bindMotion,pitchSVG,liveTailSVG} from './view.js?v=11';
+import {Microphone} from './microphone.js?v=11';
+import {MAX_SECONDS,MAX_FILE_BYTES} from './limits.js?v=11';
+import {ClipEditor} from './clip-editor.js?v=11';
+import {liveView,recentLiveWords,liveReplayAnalysis} from './live-analysis.js?v=11';
 import {SampleRing} from './sample-ring.js';
-import {LiveLayout} from './live-layout.js?v=10';
-import {LiveHistory} from './live-history.js?v=10';
-import {finalizeLiveTranscript} from './live-transcript.js?v=10';
-import {curve,pitchAnchors,pitchHeight} from './contour.js?v=10';
+import {LiveViewport} from './live-viewport.js?v=11';
+import {LiveLayout} from './live-layout.js?v=11';
+import {LiveHistory} from './live-history.js?v=11';
+import {finalizeLiveTranscript} from './live-transcript.js?v=11';
+import {curve,pitchAnchors,pitchHeight} from './contour.js?v=11';
 const microphone=new Microphone();
 let liveHistory=new LiveHistory(),liveLayout=new LiveLayout(),liveRow=-1,liveScene=null,liveSceneBase=0,liveRecognitionFailed=false,liveSaved=null;
 const sentences=['They tried to keep a secret, but somehow everyone found out.','You really thought I would leave without saying goodbye?','I ordered the coffee, but she asked for a cup of tea.','When the rain finally stopped, we walked home together.','I never said you had to finish it today.'];
 const $=id=>document.getElementById(id),audio=$('audio'),reduced=matchMedia('(prefers-reduced-motion: reduce)');
 let displayText='',transcribing=false,liveMode=false,liveSelected=false,liveTake=false,liveResult=null,liveAligned=[],liveMotion=null,liveTransition=null,liveEnd=0,liveTakeStart=0,nativeRing=null,analysisRing=null;
-let selected=0,mode='idle',generation=0,modelReady=false,modelFailed=false,speech,signal;
+let selected=0,mode='idle',generation=0,modelReady=false,modelFailed=false,speech,signal,speechKind=false;
 let result=null,acousticsReady=false,words=[],pending=false,pendingAlignment=null,isExample=false,importing=false;
 let currentAnalysis=null,offset=0,takeDuration=0,objectUrl=null,analyser=null,motion=null,poseTime=null;
 let nativeChunks=[],analysisChunks=[],converter=null,sampleRate=RATE,timer=null,animation=null,playAnimation=null,recordStart=0,finishing=false,clipEnd=null,acceptedAt=0;
+const liveViewport=new LiveViewport($('visualization'),{reduced:reduced.matches});
 const clipEditor=new ClipEditor($('clip-card'));
 displayText=sentences[0];
 const fmt=n=>`${Math.floor(n/60)}:${String(Math.floor(n%60)).padStart(2,'0')}`;
@@ -35,7 +37,7 @@ function controls(){
  $('live').setAttribute('aria-pressed',String(liveSelected));
  $('live').setAttribute('aria-label',mode==='live'?'Stop live listening':mode==='permission'&&liveMode?'Cancel live microphone request':'Start live listening');
  $('live').classList.toggle('pending',mode==='permission'&&liveMode);$('live').classList.toggle('listening',mode==='live');
- $('studio').classList.toggle('is-live',mode==='live');
+ $('studio').classList.toggle('is-live',mode==='live');$('studio').classList.toggle('live-session',liveSelected);
  $('record').classList.toggle('recording',mode==='recording'||mode==='live');$('record').classList.toggle('pending',mode==='permission');
  const label=mode==='permission'?'Cancel microphone request':mode==='live'?'Stop live listening':mode==='recording'?'Stop recording':mode==='stopping'?'Finishing recording':liveSelected?'Start live listening':hasAudio?'Record again':'Record';
  $('record').setAttribute('aria-label',label);$('record').title=label;
@@ -48,12 +50,14 @@ function controls(){
  document.querySelectorAll('[role=tab]').forEach((b,i)=>{b.setAttribute('aria-selected',String(!liveSelected&&i===selected));b.tabIndex=i===selected?0:-1;});
  document.body.classList.remove('booting');
 }
-function initializeWorkers(){
- speech=new Worker(new URL('./worker.js?v=10',import.meta.url),{type:'module'});
- signal=new Worker(new URL('./signal-worker.js?v=10',import.meta.url),{type:'module'});
+function initializeSpeech(live=false){
+ speech?.terminate();speechKind=live;modelReady=false;modelFailed=false;
+ speech=new Worker(new URL(live?'./dictation-worker.js?v=11':'./worker.js?v=11',import.meta.url),{type:'module'});
+ const activeSpeech=speech;
  speech.onmessage=({data})=>{
+  if(speech!==activeSpeech)return;
   if(data.type==='progress'){$('visualization').dataset.modelProgress=String(Math.round(data.progress));return;}
-  if(data.type==='ready'){modelReady=true;modelFailed=false;$('visualization').dataset.threads=String(data.threads);$('retry-model').hidden=true;controls();return;}
+  if(data.type==='ready'){modelReady=true;modelFailed=false;$('visualization').dataset.threads=String(data.threads);$('visualization').dataset.recognizer=data.model||'Wav2Vec2';$('retry-model').hidden=true;controls();return;}
   if(data.id!==undefined&&data.id!==generation)return;
   if(data.type==='error'){
    if(data.id===undefined){modelFailed=true;modelReady=false;}
@@ -62,7 +66,7 @@ function initializeWorkers(){
    status('Word timing unavailable');console.warn('Prosody speech:',data.message);controls();return;
   }
   if(data.type==='live-aligned'){
-   if(mode==='live'){liveRecognitionFailed=false;message();liveHistory.transcript(data.result);liveAligned=liveHistory.words;if(liveResult)liveHistory.measure(liveResult);$('visualization').dataset.liveTranscript=data.result.text;$('visualization').dataset.liveProcessedUntil=String(data.result.processedUntil);if(liveResult)paintLive(true);}return;
+   if(mode==='live'){liveRecognitionFailed=false;message();liveHistory.transcript(data.result);liveAligned=liveHistory.words;if(liveResult)liveHistory.measure(liveResult);$('visualization').dataset.liveTranscript=data.result.text;$('visualization').dataset.liveProcessedUntil=String(data.result.processedUntil);$('visualization').dataset.liveDecodeMs=data.result.inferenceMs?.toFixed(1)||'';if(!$('visualization').dataset.liveFirstWordsMs)$('visualization').dataset.liveFirstWordsMs=(performance.now()-recordStart).toFixed(1);if(liveResult)paintLive(true);}return;
   }
   if(data.type==='live-final'){
    if(!pending||!liveTake)return;
@@ -75,19 +79,23 @@ function initializeWorkers(){
    pendingAlignment=data.result;if(result&&acousticsReady)applyAlignment();
   }
  };
+ speech.onerror=()=>{modelFailed=true;modelReady=false;pending=false;$('retry-model').hidden=false;message('Word timing is unavailable. You can still record, replay audio and see its pitch.');controls();};
+}
+function initializeWorkers(){initializeSpeech();signal=new Worker(new URL('./signal-worker.js?v=11',import.meta.url),{type:'module'});
  signal.onmessage=({data})=>{
   if(data.id!==generation)return;
   if(data.type==='live-acoustic'){if(mode==='live'){if(!liveResult)$('visualization').dataset.liveFirstMs=(performance.now()-recordStart).toFixed(1);$('visualization').dataset.liveUpdates=String(Number($('visualization').dataset.liveUpdates||0)+1);liveResult=data.result;liveHistory.measure(liveResult);saveLivePause();result=liveResult;$('visualization').dataset.liveSignalMs=data.milliseconds.toFixed(1);paintLive();}return;}
   if(data.type==='error'){pending=false;mode='result';message('The audio couldn’t be analyzed. Try another recording.',true);render();controls();return;}
   result=data.result;acousticsReady=true;mode='result';$('reset').hidden=false;
   $('visualization').dataset.signalMs=data.milliseconds.toFixed(1);$('visualization').dataset.firstContourMs=(performance.now()-acceptedAt).toFixed(1);
-  if((result.voicedFraction<.06&&(!liveTake||!words.length))||result.peak<.005){
+  if(!liveTake&&(result.voicedFraction<.06||result.peak<.000001)){
    pending=false;speech.postMessage({type:'cancel',id:generation});status('Try another take');message('No clear speech detected. Check the microphone and try again.',true);render();controls();return;
   }
   if(pendingAlignment)applyAlignment();else{render();status(pending?'Analyzing recording':'Ready');controls();}
  };
- speech.onerror=()=>{modelFailed=true;modelReady=false;pending=false;$('retry-model').hidden=false;message('Word timing is unavailable. You can still record, replay audio and see its pitch.');controls();};
 }
+function ensureSpeech(live){if(speechKind!==live)initializeSpeech(live);}
+
 function loadEngine(){if(modelReady)return;$('retry-model').hidden=true;speech.postMessage({type:'load'});}
 function applyAlignment(){
  const alignment=pendingAlignment;pendingAlignment=null;pending=false;result.alignment=alignment;
@@ -108,7 +116,7 @@ function clear(){
  result=null;acousticsReady=false;words=[];currentAnalysis=null;isExample=false;displayText=liveSelected?'Speak freely.':sentences[selected];transcribing=false;liveMode=false;liveTake=false;liveResult=null;liveAligned=[];liveMotion=null;liveTransition=null;liveEnd=0;liveRow=-1;liveSaved=null;liveRecognitionFailed=false;liveScene=null;liveLayout=new LiveLayout();liveHistory=new LiveHistory();nativeRing=null;analysisRing=null;mode='idle';clipEnd=null;poseTime=null;motion=null;
  if(liveSelected){$('canvas-panel').removeAttribute('aria-labelledby');$('canvas-panel').setAttribute('aria-label','Live speech');}else{$('canvas-panel').setAttribute('aria-labelledby',`tab-${selected}`);$('canvas-panel').removeAttribute('aria-label');}
  renderInsights();$('reset').hidden=true;$('sample-label').hidden=true;$('seek').value=0;
- for(const key of ['liveWords','liveUpdates','liveFirstMs','liveTranscript','liveProcessedUntil','liveWindowStart','livePaintUntil'])delete $('visualization').dataset[key];
+ for(const key of ['liveWords','liveUpdates','liveFirstMs','liveFirstWordsMs','liveDecodeMs','liveTranscript','liveProcessedUntil','liveWindowStart','livePaintUntil'])delete $('visualization').dataset[key];
  $('play').classList.remove('playing');$('play').setAttribute('aria-label','Play recording');message();status('Ready');render();controls();
 }
 function select(index){
@@ -132,7 +140,8 @@ async function releaseMicrophone(){cancelAnimationFrame(animation);clearTimeout(
 function audioContext(){return new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});}
 async function startRecording(live=false){
  if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){message('Microphone access requires HTTPS or localhost. You can also use the upload icon.',true);return;}
- liveSelected=live;clear();liveMode=live;liveTake=live;transcribing=live;mode='permission';status('Starting microphone');controls();const id=generation,clicked=performance.now();
+ if(live&&!liveSelected){const baseline=!result?$('studio').getBoundingClientRect().height:matchMedia('(max-width:600px)').matches?381:438;$('studio').style.setProperty('--live-card-height',`${Math.round(baseline)}px`);}
+ liveSelected=live;clear();ensureSpeech(live);liveMode=live;liveTake=live;transcribing=live;mode='permission';status('Starting microphone');controls();const id=generation,clicked=performance.now();
  nativeChunks=[];analysisChunks=[];converter=null;finishing=false;speech.postMessage({type:'start',id,...(!live?{text:sentences[selected]}:{}),live});if(live)signal.postMessage({type:'live-start',id});
  try{
   await microphone.start(id,{
@@ -160,17 +169,17 @@ function liveFrame(){
 // Preserve the last speech-ending replay window once quiet begins. Otherwise
 // a user who pauses for over 30 seconds would stop on a ring full of silence.
 function saveLivePause(){
- if(!nativeRing||!analysisRing||!liveResult?.voicedFraction||liveResult.duration-liveResult.speechEnd<.2)return;
- if(liveSaved&&liveResult.speechEnd<=liveSaved.speechEnd+.1)return;
+ if(!nativeRing||!analysisRing||!liveResult?.activeUntil||liveResult.duration-liveResult.activeUntil<.25)return;
+ if(liveSaved&&(liveResult.activeUntil??liveResult.speechEnd)<=liveSaved.speechEnd+.1)return;
  const start=Math.max(analysisRing.start,Math.round(nativeRing.start/sampleRate*RATE));
- liveSaved={start:start/RATE,speechEnd:liveResult.speechEnd,analyzed:analysisRing.slice(start),native:nativeRing.slice(Math.round(start/RATE*sampleRate),Math.round(analysisRing.end/RATE*sampleRate))};
+ liveSaved={start:start/RATE,speechEnd:liveResult.activeUntil??liveResult.speechEnd,analyzed:analysisRing.slice(start),native:nativeRing.slice(Math.round(start/RATE*sampleRate),Math.round(analysisRing.end/RATE*sampleRate))};
 }
 function stopRecording(){if(!['recording','live'].includes(mode))return;mode='stopping';controls();microphone.stop();}
 function finishRecording(){
  if(finishing)return;finishing=true;cancelAnimationFrame(animation);clearTimeout(timer);analyser=null;
  if(liveTake){
   const tail=converter?.finish();if(tail?.length){analysisRing.append(tail);speech.postMessage({type:'chunk',id:generation,samples:tail});}
-  const start=Math.max(analysisRing.start,Math.round(nativeRing.start/sampleRate*RATE)),saved=liveSaved&&liveHistory.lastSoundEnd<=liveSaved.speechEnd+.1?liveSaved:null;
+  const start=Math.max(analysisRing.start,Math.round(nativeRing.start/sampleRate*RATE)),saved=liveSaved&&Math.max(liveHistory.lastSoundEnd||0,liveResult?.activeUntil||0)<=liveSaved.speechEnd+.1?liveSaved:null;
   const analyzed=saved?saved.analyzed:analysisRing.slice(start),native=saved?saved.native:nativeRing.slice(Math.round(start/RATE*sampleRate));
   liveTakeStart=saved?saved.start:start/RATE;liveSaved=null;nativeRing=null;analysisRing=null;converter=null;liveMode=false;liveMotion=null;liveTransition=null;
   if(native.length/sampleRate<.25){speech.postMessage({type:'cancel',id:generation});clear();finishing=false;return;}
@@ -186,7 +195,7 @@ $('record').onclick=async()=>{if(mode==='permission')return cancelCapture();retu
 $('live').onclick=async()=>{if(mode==='permission')return cancelCapture();return mode==='live'?stopRecording():startRecording(true);};
 function requestAlignment(){speech.postMessage({type:'analyze',id:generation,samples:currentAnalysis,...(!transcribing?{text:sentences[selected]}:{}),offset,playbackDuration:takeDuration,transcribe:transcribing});}
 function acceptAudio(native,rate,analyzed=analysisSamples(native,rate),{live=false}={}){
- acceptedAt=performance.now();currentAnalysis=analyzed;const trim=leadingTrim(analyzed);offset=trim.seconds;
+ acceptedAt=performance.now();currentAnalysis=analyzed;const trim=leadingTrim(analyzed,RATE,{quiet:live});offset=trim.seconds;
  const nativeStart=Math.round(offset*rate),nativeEnd=Math.min(native.length,Math.round(trim.endIndex/RATE*rate)),playback=native.subarray(nativeStart,nativeEnd),signalSamples=analyzed.subarray(trim.index,trim.endIndex);takeDuration=signalSamples.length/RATE;
  // Uploads have no previously streamed emissions to reuse. Infer only the
  // audible selection, avoiding expensive model work on already-trimmed waits.
@@ -209,7 +218,7 @@ $('upload').onchange=async e=>{
   for(let c=0;c<buffer.numberOfChannels;c++){const data=buffer.getChannelData(c);for(let i=0;i<mono.length;i++)mono[i]+=data[i]/buffer.numberOfChannels;}
   if(id!==generation)return;
   const selection=await clipEditor.open(mono,buffer.sampleRate,file.name);
-  if(selection&&id===generation){liveSelected=false;clear();transcribing=true;displayText='';$('visualization').dataset.selectionStart=selection.start.toFixed(3);$('visualization').dataset.selectionEnd=selection.end.toFixed(3);acceptAudio(selection.samples,selection.rate);}
+  if(selection&&id===generation){liveSelected=false;clear();ensureSpeech(false);transcribing=true;displayText='';$('visualization').dataset.selectionStart=selection.start.toFixed(3);$('visualization').dataset.selectionEnd=selection.end.toFixed(3);acceptAudio(selection.samples,selection.rate);}
  }catch(e){if(id===generation)message(e.message.includes('seconds')?e.message:'That audio format couldn’t be opened. Try WAV, MP3 or M4A.',true);}
  finally{await decoder?.close().catch(()=>{});importing=false;controls();}
 };
@@ -228,15 +237,11 @@ function paintLive(force=false){
  }else{
   const end=view.end;if(!force&&end===liveEnd&&container.querySelector('.live-tail-layer')){container.querySelector('.live-tail-layer').innerHTML=liveTailSVG(liveResult,liveScene,liveSceneBase);renderInsights();return;}
   const known=summarizeWords(view.words,view.analysis),drawing=voiceSVG(view.analysis,known,view.text,small,{time:Math.max(0,liveEnd-view.start),flow:true});
-  let feed=container.querySelector('.live-feed');
-  if(!feed){container.innerHTML='<div class="live-feed"><div class="live-pages"></div></div>';feed=container.firstElementChild;}
-  const pages=feed.firstElementChild,changed=liveRow>=0&&plan.lastRow>liveRow;
   liveScene=drawing.scene;liveSceneBase=view.start;
-  pages.innerHTML=drawing.svg.replace('</svg>',`<g class="live-tail-layer" aria-hidden="true">${liveTailSVG(liveResult,liveScene,liveSceneBase)}</g></svg>`);const update=bindMotion(pages,drawing.scene,{live:true});liveMotion=time=>{update?.(time);pages.querySelector('.live-tail-layer').innerHTML=liveTailSVG(liveResult,drawing.scene,view.start,time);};liveMotion(Math.max(0,liveEnd-view.start));
+  const svg=drawing.svg.replace('</svg>',`<g class="live-tail-layer" aria-hidden="true">${liveTailSVG(liveResult,liveScene,liveSceneBase)}</g></svg>`);
+  const pages=liveViewport.render(svg,drawing.scene,{row:plan.lastRow});
+  const update=bindMotion(pages,drawing.scene,{live:true});liveMotion=time=>{update?.(time);pages.querySelector('.live-tail-layer').innerHTML=liveTailSVG(liveResult,drawing.scene,view.start,time);};liveMotion(Math.max(0,liveEnd-view.start));
   pages.querySelectorAll('g.word').forEach(el=>{el.setAttribute('tabindex','-1');el.setAttribute('role','img');el.setAttribute('aria-label',el.getAttribute('aria-label').replace(/^Play /,''));});
-  if(changed&&!reduced.matches){
-   const distance=drawing.scene.rowH/drawing.scene.W*pages.clientWidth;pages.getAnimations().forEach(a=>a.cancel());pages.animate([{transform:`translateY(${distance}px)`},{transform:'translateY(0)'}],{duration:600,easing:'cubic-bezier(.2,.65,.25,1)'});
-  }
   liveRow=plan.lastRow;
   if(end>liveEnd+.01){liveTransition={from:Math.max(0,liveEnd-view.start),to:view.analysis.duration,started:performance.now()};liveEnd=end;}else liveMotion?.(reduced.matches?null:view.analysis.duration);
   container.dataset.liveWindowStart=String(view.start);container.dataset.livePaintUntil=String(end);
@@ -248,7 +253,10 @@ function render(){
  const container=$('visualization');motion=null;if(mode==='live'){if(liveResult)paintLive();else container.innerHTML=promptSVG('Speak freely.',container.clientWidth<440);return;}
  if(transcribing&&!words.length){container.innerHTML=(pending?'<div class="transcript-skeleton" role="img" aria-label="Transcribing speech"><i></i><i></i><i></i></div>':'')+(result?pitchSVG(result,container.clientWidth<440):'');renderInsights();return;}
  if(!result){container.innerHTML=promptSVG(displayText,container.clientWidth<440);renderInsights();return;}
- const drawing=voiceSVG(result,words,displayText,container.clientWidth<440,{time:reduced.matches?null:poseTime});container.innerHTML=drawing.svg;motion=bindMotion(container,drawing.scene);
+ const small=container.clientWidth<440,shown=liveSelected?new LiveLayout().update(words,result,small,{maxRows:Infinity}).words:words;
+ const drawing=voiceSVG(result,shown,displayText,small,{time:reduced.matches?null:poseTime,flow:liveSelected});
+ if(liveSelected){const pages=liveViewport.render(drawing.svg,drawing.scene);const update=bindMotion(pages,drawing.scene);motion=time=>{update?.(time);liveViewport.seek(drawing.scene,time);};}
+ else{container.innerHTML=drawing.svg;motion=bindMotion(container,drawing.scene);}
  container.querySelectorAll('g.word').forEach(el=>{
   const w=words[Number(el.dataset.word)],detail=()=>showDetail(w);el.onmouseenter=detail;el.onfocus=detail;el.onmouseleave=hideDetail;el.onblur=hideDetail;
   const playWord=()=>{audio.currentTime=Math.max(0,w.start-.01);clipEnd=w.end+.01;poseTime=audio.currentTime;playAudio();};

@@ -1,5 +1,5 @@
-import {ClipSelection,waveformPeaks,timecode} from './selection.js?v=8';
-import {encodeWav} from './analysis.js?v=8';
+import {ClipSelection,waveformPeaks,timecode} from './selection.js?v=11';
+import {encodeWav} from './analysis.js?v=11';
 export class ClipEditor{
  constructor(dialog){
   this.dialog=dialog;this.track=dialog.querySelector('#clip-track');this.audio=dialog.querySelector('audio');

@@ -1,6 +1,6 @@
-import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=8';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=10';
-import {createScene} from './scene.js?v=10';
+import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=11';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=11';
+import {createScene} from './scene.js?v=11';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 export function promptSVG(text,small=false){
  const W=small?600:1100,pad=32,scale=small?1.12:1.36;
@@ -23,7 +23,7 @@ export function voiceSVG(analysis,words,text,small=false,{time=null,flow=false}=
  const parts=[`<svg xmlns="http://www.w3.org/2000/svg" class="voice-svg" id="voice-svg" viewBox="0 -12 ${W} ${H+12}" role="group" aria-label="Pitch contour and spoken words"><title>${esc(text)}</title><desc>Letters widen and grow taller with relative duration. Letter position and tilt follow measured pitch. Playback reveals these movements and the shared contour as each word is spoken.</desc>`];
  for(const layout of frame.layouts){
   const r=layout.r,top=r*rowH,id=`contour-${r}`;
-  parts.push(`<defs><path id="${id}" d="${layout.d}"/><clipPath id="reveal-${r}"><rect data-reveal="${r}" x="0" y="${top-12}" width="${layout.reveal}" height="${rowH+24}"/></clipPath></defs><g clip-path="url(#reveal-${r})"><use href="#${id}" class="pitch-line"/>`);
+  parts.push(`<defs><path id="${id}" d="${layout.d}"/><clipPath id="reveal-${r}"><rect data-reveal="${r}" x="0" y="${top-12}" width="${layout.reveal}" height="${rowH+24}"/></clipPath></defs><g clip-path="url(#reveal-${r})"><use href="#${id}" class="pitch-line${layout.unvoiced?' unvoiced-contour':''}"/>`);
   for(const p of frame.pauses.filter(p=>p.r===r))parts.push(`<defs><clipPath id="pause-${p.key}"><rect data-pause="${p.key}" x="${p.x}" y="${top-12}" width="${p.width}" height="${rowH+24}"/></clipPath></defs><use href="#${id}" class="pause-erase" clip-path="url(#pause-${p.key})"/><use href="#${id}" class="pause-bridge" clip-path="url(#pause-${p.key})"/>`);
   for(const w of layout.words){
    for(const mark of frame.marks.filter(m=>m.index===w.index))parts.push(`<defs><clipPath id="word-clip-${mark.key}"><rect data-mark-clip="${mark.key}" x="${mark.x}" y="${top-12}" width="${mark.width}" height="${rowH+24}"/></clipPath></defs><use href="#${id}" class="word-mark${w.uncertain?' uncertain':''}" data-mark="${mark.key}" opacity="${mark.opacity}" clip-path="url(#word-clip-${mark.key})" stroke-width="${(2.6+(w.prominence??.5)*1.6).toFixed(2)}"/>`);
@@ -47,7 +47,7 @@ export function liveTailSVG(analysis,scene,base=0,time=null){
  const height=scene.pitchHeight,hz=row.pitch.at(-1)?.hz||analysis.medianHz||160,anchors=[{t:start,hz},...pitchAnchors(analysis,[],start,end).filter(p=>p.t>start)];
  if(anchors.length===1)anchors.push({t:end,hz});
  const x=t=>x0+(t-start)*Math.min(170,room/Math.max(.01,end-start));
- const d=curve(anchors.map(p=>({x:x(p.t),y:row.base+15-height(p.hz)}))).d,parts=[`<defs><path id="live-tail-path" d="${d}"/></defs><use href="#live-tail-path" class="pitch-line"/>`];
+ const d=curve(anchors.map(p=>({x:x(p.t),y:row.base+15-height(p.hz)}))).d,parts=[`<defs><path id="live-tail-path" d="${d}"/></defs><use href="#live-tail-path" class="pitch-line${row.pitch.length?'':' unvoiced-contour'}"/>`];
  const bins=analysis.energy.filter(f=>f.end>start&&f.start<end),ceiling=Math.max(0,...bins.map(f=>f.rms)),gate=Math.max(analysis.threshold,ceiling*.62);
  const quiet=[];let silence=null;if(!bins.length&&analysis.duration-start>=.18)quiet.push({start,end});
  bins.forEach((f,i)=>{

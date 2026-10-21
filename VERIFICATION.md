@@ -1,6 +1,6 @@
 # GitHub Pages release verification
 
-93 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
+107 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
 
 ## Pitch and sentence endings
 
@@ -60,3 +60,24 @@ Automated coverage adds three-minute continuous inference with exact frame ident
 The word model still makes recognition errors, including on synthetic speech; there is no measured human-accent word error rate. Acoustic pitch and prominence remain estimates. The newest pitch/energy contour is drawn independently of recognition latency and extends beyond the last timed word rather than assigning the pending sound to it. Live retains a replay window of up to 30 seconds ending with the most recent speech; a frozen native-rate window survives a long silent wait before stopping; continuous listening and the upward-moving canvas do not have that limit.
 
 A long-pause browser regression preserved the recognized phrase and a trimmed native-rate replay after more than 30 seconds of silence. Complete stored words are protected where a rolling transcript starts partway through an earlier word. Stop reuses the already measured contour and words immediately while final recognition and acoustic workers flush, rather than clearing the canvas to shimmer placeholders.
+
+
+## Fixed Live viewport and improved dictation, 21 October 2026
+
+This section supersedes the earlier CTC-based Live recognition description. Live now uses quantized Whisper base.en, pinned at `95bf40a508535962c6483ead40270b2e32267508`, entirely in the browser. Sample recording/alignment and uploaded selections retain the existing Wav2Vec2 path. Only one recognition worker is retained when switching modes. Model weights and tokenizer files total about 79 MB for Whisper; a first download and slow devices can delay words. Pitch/energy measurements continue independently. No recording is sent to a recognition server.
+
+The card size constraint now follows Live selection throughout active capture, stopping, pending final analysis and replay. Growing SVG content stays inside a real scrolling viewport with a fading top mask. Playback/seek follow the active row. Live retains four recent rendered rows while listening; its bounded replay transcript also scrolls inside the same card.
+
+Browser checks used a local synthetic MediaStream and the real AudioWorklet plus real WASM models, not injected recognition results. At a 1280 px viewport the card remained 1044 x 446 px while scrolling its content, stopping and replaying 101 retained words. Internal scroll passed 5,000 px during replay; the outer card did not grow. At a real 436 px iframe width, the card remained 311 x 430 px (initial fractional height 429.63 px rounded on entry) through long quiet-input capture and Stop, with 4,833 px of internal content after Stop. Microphone acknowledgment was 22 ms and first acoustic output 89.6 ms in that quiet-input check. First words appeared at 2.71 seconds; a later 14-second decode took 1.86 seconds. These are local measurements, not universal latency guarantees.
+
+Recognition checks:
+
+- A 34.307-second, 117-word synthetic English passage was streamed through the actual Whisper model with overlapping 14-second windows. Both its normal-volume version and a 0.005-gain copy retained all expected words after joining windows, with “30” normalized against “thirty”. The join uses shared word pairs because timestamp-only joins previously dropped short words. Empty partial model responses no longer erase valid recognized text. These passages are reproducible spot checks, not a general word error rate or human whisper benchmark.
+- The browser quiet-input run retained all 117 words while actively listening. Final replay retained the latest 30-second portion. The native replay samples remain quiet and unchanged; gain applies only to the separate recognition input.
+- A real whispered speech example was checked from [Ruggles, Freyman and Oxenham (2014), supporting Audio S2](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0086980). The model produced “The goose can kick a street.” at original level and at 0.005 gain. YIN measured zero voiced frames in that 1.524-second whisper. The paired voiced example produced “The goos can kick a street.” This is a small qualitative sanity check with no independently annotated ground-truth score. The paper's audio was used only in local scratch testing and is not deployed.
+
+Quiet activity detection accepts changing aperiodic speech without requiring F0. Analysis uses a lower absolute floor, and quiet Live replay uses lower edge-trimming thresholds. Fully unvoiced rows have a neutral dashed timing baseline, rather than invented pitch; coral energy marks still follow that same path.
+
+107 automated tests pass. Added coverage includes quiet aperiodic input, zero/DC rejection, analysis-only gain, numerals and uncertain Whisper word timestamps, blank partial results, coalesced inference, cancellation, three-minute bounded dictation, timestamp drift at rolling joins, quiet replay trimming, neutral unvoiced geometry, real viewport scroll targets and playback at the final row. Existing capture, recording/upload, 30-second selection, native WAV quality, pitch-ending and rhythm-path regressions pass.
+
+Recognition and word timing remain estimates. Whispers, background noise, names, accents and very slow hardware can still cause errors; this release does not establish an accuracy score for this user's microphone or accent. Whisper word boundaries are attention estimates, not phoneme-level forced alignment.

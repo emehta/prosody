@@ -1,6 +1,6 @@
-import {wordWidth,LETTERS} from './lettering.js?v=8';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=10';
-import {quantile} from './analysis.js?v=8';
+import {wordWidth,LETTERS} from './lettering.js?v=11';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=11';
+import {quantile} from './analysis.js?v=11';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const ease=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
 const f=n=>Number(n).toFixed(2);
@@ -52,8 +52,9 @@ export function createScene(analysis,words,text,small=false,{flow=false}={}){
     const point={x:xTime(p.t),y:row.base+15-height(p.hz)};
     if(points.length&&point.x-points.at(-1).x<.01)points[points.length-1]=point;else points.push(point);
    }
+   if(!points.length)points.push({x:xTime(row.start),y:row.base+15},{x:xTime(row.end),y:row.base+15});
    const contour=curve(points),endX=full?W:time<=row.start?0:xTime(Math.min(time,row.end));
-   const layout={r,d:contour.d,start:row.start,end:row.end,xTime,reveal:endX,words:poses};layouts.push(layout);
+   const layout={r,unvoiced:!row.pitch.length,d:contour.d,start:row.start,end:row.end,xTime,reveal:endX,words:poses};layouts.push(layout);
    for(const w of poses){
     const middle=w.x+w.currentWidth/2,markWidth=Math.min(w.currentWidth*.85,Math.max(7,(w.end-w.start)*125));
     const rhythm=w.rhythm??[{start:null,end:null}];

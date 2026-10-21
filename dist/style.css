@@ -19,3 +19,16 @@
 @media(max-width:600px){.live-feed,.is-live .visualization{height:340px;min-height:340px}.is-live .canvas-panel{padding-top:16px}}
 
 .sentence-picker button:disabled{opacity:.65}
+/* A Live session keeps the same outer size while listening, stopping, replaying
+   and refining the transcript. No SVG or flex minimum can enlarge this box. */
+.studio.live-session{height:var(--live-card-height,438px);max-height:var(--live-card-height,438px);width:100%;max-width:100%;display:flex;flex-direction:column;overflow:hidden;contain:layout}
+.live-session .canvas-panel{flex:1 1 0;min-height:0;max-height:100%;overflow:hidden;padding-top:24px}
+.live-session .visualization{height:100%;min-height:0;max-height:100%;overflow:hidden}
+.live-session .controls,.live-session .playback,.live-session .message{flex:0 0 auto}
+.live-session .live-feed{height:100%;min-height:0;max-height:100%;width:100%;overflow:hidden;overflow-anchor:none;scrollbar-width:none;flex:1 1 0;position:relative;mask-image:linear-gradient(to bottom,transparent,black 18%,black 100%);-webkit-mask-image:linear-gradient(to bottom,transparent,black 18%,black 100%)}
+.live-session .live-feed::-webkit-scrollbar{display:none}
+.live-session .live-pages{position:relative;inset:auto;width:100%;min-width:0;transform:none}
+.live-session .live-feed .voice-svg{display:block;width:100%;height:auto;max-width:100%;overflow:visible}
+@media(max-width:600px){.studio.live-session{height:var(--live-card-height,381px);max-height:var(--live-card-height,381px)}.live-session .canvas-panel{padding-top:16px}.live-session .visualization,.live-session .live-feed{height:100%;min-height:0;max-height:100%}}
+
+.pitch-line.unvoiced-contour{stroke:var(--muted);stroke-dasharray:2 6;opacity:.5}
