@@ -1,4 +1,4 @@
-import {quantile} from './analysis.js?v=12';
+import {quantile} from './analysis.js?v=13';
 
 // Band-limited streaming conversion for analysis only. Playback always keeps
 // the original native-rate PCM. The same converter handles chunks and files.

@@ -1,8 +1,8 @@
-import {alignWindowCTC,transcribeWindowCTC,MODEL,MODEL_REVISION,RATE} from './analysis.js?v=12';
-import {MAX_SECONDS} from './limits.js?v=12';
+import {alignWindowCTC,transcribeWindowCTC,MODEL,MODEL_REVISION,RATE} from './analysis.js?v=13';
+import {MAX_SECONDS} from './limits.js?v=13';
 import {StreamingCTC} from './streaming.js';
-import {LiveCTC} from './live-streaming.js?v=12';
-import {transcribeLiveCTC} from './live-transcript.js?v=12';
+import {LiveCTC} from './live-streaming.js?v=13';
+import {transcribeLiveCTC} from './live-transcript.js?v=13';
 let enginePromise=null,inferenceQueue=Promise.resolve(),session=null,latestId=-1;
 async function engine(){
   if(!enginePromise)enginePromise=(async()=>{

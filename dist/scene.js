@@ -1,11 +1,12 @@
-import {wordWidth,LETTERS} from './lettering.js?v=12';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=12';
-import {quantile} from './analysis.js?v=12';
+import {wordWidth,LETTERS} from './lettering.js?v=13';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=13';
+import {quantile} from './analysis.js?v=13';
+import {LIVE_ROW_HEIGHT,LIVE_TYPE_SCALE} from './live-layout.js?v=13';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const ease=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
 const f=n=>Number(n).toFixed(2);
 export function createScene(analysis,words,text,small=false,{flow=false}={}){
- const W=small?600:1100,pad=40,inner=W-pad*2,preferredScale=small?1.12:1.36,rowH=294,minGap=25;
+ const W=small?600:1100,pad=40,inner=W-pad*2,preferredScale=flow?LIVE_TYPE_SCALE:small?1.12:1.36,rowH=flow?LIVE_ROW_HEIGHT:294,minGap=25;
  const source=text.split(/\s+/),speed=quantile(words.filter(w=>!w.pending).map(w=>(w.end-w.start)/Math.max(1,wordWidth(w.word))),.5)||.002;
  const items=words.map((w,i)=>{
   const display=w.word+(source[i]?.match(/[,.?]$/)?.[0]||''),natural=wordWidth(display,preferredScale);
@@ -27,9 +28,9 @@ export function createScene(analysis,words,text,small=false,{flow=false}={}){
   let start=row[0].start,end=row.at(-1).end;
   start=r?(rows[r-1].at(-1).end+start)/2:Math.max(0,Math.min(start,analysis.speechStart));
   end=r<rows.length-1?(end+rows[r+1][0].start)/2:Math.min(analysis.duration,Math.max(end,analysis.speechEnd));
-  row.start=start;row.end=end;row.pitch=pitchAnchors(analysis,row,start,end);row.top=r*rowH;row.base=row.top+182;
+  row.start=start;row.end=end;row.pitch=pitchAnchors(analysis,row,start,end);row.top=r*rowH;row.base=row.top+(flow?148:182);
  });
- const height=pitchHeight({...analysis,frames:analysis.rangeFrames||analysis.frames});
+ const height=pitchHeight({...analysis,frames:analysis.rangeFrames||analysis.frames},flow?36:49.2);
  function frame(time=null){
   const full=time===null,layouts=[],glyphs=[],marks=[],pauses=[];
   rows.forEach((row,r)=>{

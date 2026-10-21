@@ -15,20 +15,29 @@
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 .transcript-skeleton{width:80%;padding:55px 0;display:flex;flex-direction:column;gap:32px;align-items:center}.transcript-skeleton i{display:block;width:92%;height:28px;border-radius:4px;background:linear-gradient(100deg,var(--soft) 15%,var(--hover) 40%,var(--soft) 65%);background-size:250% 100%;animation:shimmer 1.4s linear infinite}.transcript-skeleton i:nth-child(2){width:76%}.transcript-skeleton i:nth-child(3){width:85%}.booting #record{background:linear-gradient(100deg,var(--soft) 15%,var(--hover) 40%,var(--soft) 65%);background-size:250% 100%;animation:shimmer 1.4s linear infinite}
 
-.live-feed{height:400px;width:100%;position:relative;overflow:hidden;mask-image:linear-gradient(to bottom,transparent,black 20%,black 100%);-webkit-mask-image:linear-gradient(to bottom,transparent,black 20%,black 100%)}.live-pages{position:absolute;left:0;right:0;bottom:0}.is-live .canvas-panel{padding-top:24px}.is-live .visualization{min-height:400px}.live-feed .voice-svg{overflow:hidden}
-@media(max-width:600px){.live-feed,.is-live .visualization{height:340px;min-height:340px}.is-live .canvas-panel{padding-top:16px}}
-
+/* The studio fills the available viewport in every mode. Transcript overflow
+   belongs to its inner scroller, never to the card or the document. */
+body{height:100dvh;min-height:480px;display:flex;flex-direction:column}
+.wrap{width:calc(100% - 64px)}
+.header{flex:0 0 auto}
+.workspace{flex:1 1 0;min-height:0;align-items:stretch;margin:0 auto;padding-bottom:24px}
+.sentence-menu{align-self:center;max-height:100%;overflow:auto}
+.studio,.studio.live-session{height:100%;max-height:100%;min-height:0;display:flex;flex-direction:column;contain:layout}
+.studio .canvas-panel{flex:1 1 0;min-height:0;overflow:hidden}
+.studio .visualization{height:100%;max-height:100%;min-height:0}
+.studio .controls,.studio .playback,.studio .message{flex:0 0 auto}
+.studio:not(.live-session) .visualization{overflow:auto;justify-content:safe center}
+.studio .prompt-svg,.studio .voice-svg{flex-shrink:0}
+.studio .prompt-svg{max-height:100%}
+.live-session .canvas-panel{padding-top:16px}
+.live-session .visualization{overflow:hidden;justify-content:flex-start}
+.live-feed{height:100%;min-height:0;width:100%;flex:1 1 0;position:relative;overflow-y:auto;overflow-x:hidden;overflow-anchor:none;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:thin;scrollbar-color:var(--rule) transparent}
+.live-feed:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+.live-feed.has-history-above{mask-image:linear-gradient(to bottom,transparent,black 22px,black 100%);-webkit-mask-image:linear-gradient(to bottom,transparent,black 22px,black 100%)}
+.live-pages{position:relative;width:100%;min-width:0;transform:none}
+.live-content,.live-before,.live-after{width:100%}
+.live-content .voice-svg{display:block;width:100%;height:auto;max-height:none;overflow:visible}
+.latest-button{position:absolute;right:22px;bottom:10px;z-index:3;background:var(--paper);border:1px solid var(--rule);box-shadow:0 3px 12px #0000000c;color:var(--accent)}
 .sentence-picker button:disabled{opacity:.65}
-/* A Live session keeps the same outer size while listening, stopping, replaying
-   and refining the transcript. No SVG or flex minimum can enlarge this box. */
-.studio.live-session{height:var(--live-card-height,438px);max-height:var(--live-card-height,438px);width:100%;max-width:100%;display:flex;flex-direction:column;overflow:hidden;contain:layout}
-.live-session .canvas-panel{flex:1 1 0;min-height:0;max-height:100%;overflow:hidden;padding-top:24px}
-.live-session .visualization{height:100%;min-height:0;max-height:100%;overflow:hidden}
-.live-session .controls,.live-session .playback,.live-session .message{flex:0 0 auto}
-.live-session .live-feed{height:100%;min-height:0;max-height:100%;width:100%;overflow:hidden;overflow-anchor:none;scrollbar-width:none;flex:1 1 0;position:relative;mask-image:linear-gradient(to bottom,transparent,black 18%,black 100%);-webkit-mask-image:linear-gradient(to bottom,transparent,black 18%,black 100%)}
-.live-session .live-feed::-webkit-scrollbar{display:none}
-.live-session .live-pages{position:relative;inset:auto;width:100%;min-width:0;transform:none}
-.live-session .live-feed .voice-svg{display:block;width:100%;height:auto;max-width:100%;overflow:visible}
-@media(max-width:600px){.studio.live-session{height:var(--live-card-height,381px);max-height:var(--live-card-height,381px)}.live-session .canvas-panel{padding-top:16px}.live-session .visualization,.live-session .live-feed{height:100%;min-height:0;max-height:100%}}
-
 .pitch-line.unvoiced-contour{stroke:var(--muted);stroke-dasharray:2 6;opacity:.5}
+@media(max-width:600px){.wrap{width:calc(100% - 24px)}.workspace{padding-bottom:12px}.studio .canvas-panel{padding-top:18px}.latest-button{right:12px;bottom:6px}}

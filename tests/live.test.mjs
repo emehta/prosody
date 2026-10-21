@@ -50,7 +50,7 @@ test('Live flow appends from the left, preserves committed lines, and follows a 
  for(let i=0;i<120;i++){
   all.push({word:i%3?'hello':'wonderful',start:i*.5,end:i*.5+.4,confidence:1});
   const duration=i*.5+.5,analysis={...analyze(tone(180,1)),duration,windowStart:Math.max(0,duration-30),speechStart:Math.max(0,duration-30),speechEnd:duration,pauses:[]};
-  const current=layout.update(recentLiveWords(all,analysis.windowStart),analysis);
+  const current=layout.update(recentLiveWords(all,analysis.windowStart),analysis,false,{maxRows:4});
   const scene=createScene(analysis,current.words,current.words.map(w=>w.word).join(' '),false,{flow:true}),frame=scene.frame();
   assert.ok(scene.rows.length<=4);assert.ok(frame.layouts.every(l=>l.words[0].x===40));
   for(const row of frame.layouts)for(const w of row.words)assert.ok(w.x+w.currentWidth<=1100,'no horizontal overflow');

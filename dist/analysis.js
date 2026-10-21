@@ -169,16 +169,22 @@ export function alignCTC(logits, dims, text, vocab, duration, blank=0) {
   return {words,decoded,match:similarity(text,decoded)};
 }
 
+// Analysis timestamps are sorted. Select each word's local samples without
+// rescanning an entire long session for every word (including SVG exports).
+function timedSlice(items,start,end){
+ let lo=0,hi=items.length;while(lo<hi){const m=(lo+hi)>>1;if(items[m].t<start)lo=m+1;else hi=m;}const first=lo;hi=items.length;
+ while(lo<hi){const m=(lo+hi)>>1;if(items[m].t<=end)lo=m+1;else hi=m;}return items.slice(first,lo);
+}
 export function summarizeWords(words, analysis) {
   const data=words.map((original,i)=>{
     // CTC peaks are sparse: retain the audible onset and final release rather
     // than cutting the first/last word off at their token-emission boundaries.
     const w={...original,start:i?original.start:Math.min(original.start,analysis.speechStart),end:i===words.length-1?Math.max(original.end,analysis.speechEnd):original.end};
-    const frames=analysis.frames.filter(f=>f.t>=w.start&&f.t<=w.end), voiced=frames.filter(f=>f.hz);
+    const frames=timedSlice(analysis.frames,w.start,w.end), voiced=frames.filter(f=>f.hz);
     const hz=quantile(voiced.map(f=>f.hz),.5),rms=quantile(frames.map(f=>f.rms),.75);
     const syllables=Math.max(1,(w.word.toLowerCase().replace(/e$/,'').match(/[aeiouy]+/g)||[]).length);
     const length=(w.end-w.start)/syllables;
-    const bins=(analysis.energy||analysis.frames).filter(f=>f.t>=w.start&&f.t<=w.end),ceiling=quantile(bins.map(f=>f.rms),.9);
+    const bins=timedSlice(analysis.energy||analysis.frames,w.start,w.end),ceiling=quantile(bins.map(f=>f.rms),.9);
     const gate=Math.max(analysis.threshold||0,ceiling*.62),rhythm=[];
     for(const f of bins){
       if(f.rms<gate||!ceiling)continue;

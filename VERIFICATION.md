@@ -1,6 +1,6 @@
 # GitHub Pages release verification
 
-109 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
+114 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
 
 ## Pitch and sentence endings
 
@@ -78,7 +78,7 @@ Recognition checks:
 
 Quiet activity detection accepts changing aperiodic speech without requiring F0. Analysis uses a lower absolute floor, and quiet Live replay uses lower edge-trimming thresholds. Fully unvoiced rows have a neutral dashed timing baseline, rather than invented pitch; coral energy marks still follow that same path.
 
-109 automated tests pass. Added coverage includes quiet aperiodic input, zero/DC rejection, analysis-only gain, numerals and uncertain Whisper word timestamps, blank partial results, coalesced inference, cancellation, three-minute bounded dictation, timestamp drift at rolling joins, quiet replay trimming, neutral unvoiced geometry, real viewport scroll targets and playback at the final row. Existing capture, recording/upload, 30-second selection, native WAV quality, pitch-ending and rhythm-path regressions pass.
+114 automated tests pass. Added coverage includes quiet aperiodic input, zero/DC rejection, analysis-only gain, numerals and uncertain Whisper word timestamps, blank partial results, coalesced inference, cancellation, three-minute bounded dictation, timestamp drift at rolling joins, quiet replay trimming, neutral unvoiced geometry, real viewport scroll targets and playback at the final row. Existing capture, recording/upload, 30-second selection, native WAV quality, pitch-ending and rhythm-path regressions pass.
 
 Recognition and word timing remain estimates. Whispers, background noise, names, accents and very slow hardware can still cause errors; this release does not establish an accuracy score for this user's microphone or accent. Whisper word boundaries are attention estimates, not phoneme-level forced alignment.
 
@@ -88,3 +88,22 @@ A repeat-run regression exposed worker task starvation: WASM decoding could keep
 Live's recognition window also ends 220 ms after the last detected activity, rather than passing long trailing silence to a generative recognizer. A regression requires a one-second speech burst followed by eight seconds of silence to send at most 1.22 seconds to recognition. This prevents long quiet tails from becoming implausibly long timed words. The worker yields with MessageChannel rather than timers, avoiding intensive background timer throttling. Live's model now warms on page load; sample/upload recognition is loaded when selected.
 
 The fresh final browser run with the warmed model and MessageChannel yield captured all 117 words before Stop, including the ending “with the shape of my voice underneath”, without a word created from the following silence. The desktop card stayed exactly 1044 x 446 px. Capture acknowledged in 81.1 ms, the first acoustic snapshot arrived in 82.4 ms, first words arrived in 4.04 seconds, and a later decode took 1.84 seconds. Word latency remains device- and load-dependent.
+
+
+## Reviewable full-session scrolling and viewport layout, 21 October 2026
+
+This release removes the four-row display cutoff, 240-word session cutoff and historic measurement cutoff that prevented meaningful scroll-back. The transcript and its measured pitch/energy history remain in memory until Clear, a new session or reload. Rolling inference and native audio replay buffers remain bounded as before; older text is visual history and does not offer a play action when its raw audio is no longer retained. SVG export includes the full session.
+
+A virtual scroll viewport preserves the complete session height with spacers and renders only nearby rows. Wheel, touch, scrollbar and keyboard navigation suspend following. New recognition results retain the reader's scroll position. Scrolling back to the bottom or using the down-arrow restores following. The first row has no fading mask at scroll position zero. Stop, final analysis and playback retain the session; playback and seeking select the corresponding recent-audio row without deleting older text.
+
+The studio fills the available width and the remaining viewport height below the header. Its bottom gap is 24 px on desktop and 12 px on narrow screens. The menu stays alongside the card, and controls remain inside it. Live uses compact row spacing and the same monoline lettering; ordinary sample layouts keep their existing geometry.
+
+Browser verification used the actual AudioWorklet and Whisper worker with synthetic input, without using the human microphone or injecting recognition results:
+
+- At 1280 x 720, the studio remained 1044 x 564 px with its bottom at 696 px. Wheel scrolling and Home recovered the first sentence while recognition continued beyond 425 words. Scroll position stayed at zero while new rows arrived. Return-to-latest resumed following. Stop and final analysis retained 514 words; replay followed the latest 30-second audio within that complete session.
+- At 436 x 820, the studio remained 311 x 659 px, bottom 808 px. A long-running quiet synthetic session retained 17,950 words across 5,832 rows in the retention check. Only 15 words were mounted when reviewing the first sentence. Home returned the internal scroll position to zero, new speech did not pull it away, and Stop/final analysis preserved the first sentence. Card height stayed 659 px throughout.
+- At 1800 x 1000, the studio measured 1564 x 844 px, bottom 976 px, confirming the old 1300 px outer width cap was removed.
+
+114 automated tests pass. Added coverage checks full history beyond the old word/measurement limits, preserved row assignments, virtual scroll extent, manual position during new speech, explicit following, playback following, narrow scaling and full-session SVG output with both first and last words and finite contours. Existing recording, upload selection, audio quality, model cancellation, pitch-ending, shared rhythm-path and sample-layout tests pass.
+
+Session text and measured visual history grow with session duration in browser memory. Raw audio replay is still limited to the latest 30 seconds ending with the latest speech. This layout release does not change the speech model or establish a human-accent accuracy score.
