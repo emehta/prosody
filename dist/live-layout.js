@@ -1,5 +1,6 @@
-import {wordWidth} from './lettering.js?v=14';
-import {quantile} from './analysis.js?v=14';
+import {wordWidth} from './lettering.js?v=16';
+import {quantile} from './analysis.js?v=16';
+import {spokenDuration} from './word-timing.js?v=16';
 export const LIVE_ROW_HEIGHT=208,LIVE_TYPE_SCALE=1.12;
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 // Line breaks are committed as speech advances. New words fill from the left;
@@ -8,13 +9,14 @@ export class LiveLayout{
  constructor(){this.breaks=[];this.metrics=[];this.serial=0;}
  update(words,analysis,small=false,{maxRows=Infinity}={}){
   if(!words.length)return {words:[],lastRow:0};
-  const speed=quantile(words.map(w=>(w.end-w.start)/Math.max(1,wordWidth(w.word))),.5)||.003;
+  const speed=quantile(words.map(w=>spokenDuration(w)/Math.max(1,wordWidth(w.word))),.5)||.003;
   const scale=LIVE_TYPE_SCALE,inner=(small?600:1100)-80;
   const previous=new Map();for(const m of this.metrics){const key=m.word+':'+Math.round(m.start*10);if(!previous.has(key))previous.set(key,[]);previous.get(key).push(m);}
   const savedMetrics=[],items=words.map((w,i)=>{
    let saved;for(const k of [Math.round(w.start*10)-1,Math.round(w.start*10),Math.round(w.start*10)+1]){saved=previous.get(w.word+':'+k)?.find(m=>Math.abs(m.start-w.start)<.08);if(saved)break;}
-   if(!saved){const relative=((w.end-w.start)/Math.max(1,wordWidth(w.word)))/speed;saved={start:w.start,word:w.word,stretch:clamp(relative**.65,.62,1.95),height:clamp(relative**.32,.76,1.45)};}if(i<words.length-1)savedMetrics.push(saved);
-   return {...w,liveStretch:saved.stretch,liveHeight:saved.height};
+   const duration=spokenDuration(w);
+   if(!saved||Math.abs(saved.duration-duration)>.06){const relative=(duration/Math.max(1,wordWidth(w.word)))/speed;saved={start:w.start,word:w.word,duration,stretch:clamp(relative**.65,.62,1.95),height:clamp(relative**.32,.76,1.45)};}if(i<words.length-1)savedMetrics.push(saved);
+   return {...w,liveIndex:i,liveStretch:saved.stretch,liveHeight:saved.height};
   });
   this.metrics=savedMetrics;
   this.breaks=this.breaks.filter((b,i,list)=>i===list.length-1||list[i+1].time>(analysis.windowStart||0));

@@ -1,5 +1,5 @@
-import {transcribeWindowCTC} from './analysis.js?v=14';
-import {shiftWord} from './word-timing.js?v=14';
+import {transcribeWindowCTC} from './analysis.js?v=16';
+import {shiftWord} from './word-timing.js?v=16';
 
 export function transcribeLiveCTC(emissions,vocab){
  if(!emissions)return {words:[],text:'',decoded:'',transcribed:true,match:1};

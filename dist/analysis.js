@@ -1,5 +1,5 @@
 // All times are seconds. Analysis works on mono, 16 kHz PCM.
-import {shiftWord} from './word-timing.js?v=14';
+import {shiftWord,spokenDuration} from './word-timing.js?v=16';
 export const RATE = 16000;
 export const HOP = 160;
 export const WINDOW = 640;
@@ -185,7 +185,7 @@ export function summarizeWords(words, analysis) {
     const frames=timedSlice(analysis.frames,w.start,w.end), voiced=frames.filter(f=>f.hz);
     const hz=quantile(voiced.map(f=>f.hz),.5),rms=quantile(frames.map(f=>f.rms),.75);
     const syllables=Math.max(1,(w.word.toLowerCase().replace(/e$/,'').match(/[aeiouy]+/g)||[]).length);
-    const length=(w.end-w.start)/syllables;
+    const length=spokenDuration(w)/syllables;
     const bins=timedSlice(analysis.energy||analysis.frames,w.start,w.end),ceiling=quantile(bins.map(f=>f.rms),.9);
     const gate=Math.max(analysis.threshold||0,ceiling*.62),rhythm=[];
     for(const f of bins){

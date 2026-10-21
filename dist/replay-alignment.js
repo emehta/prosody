@@ -1,5 +1,5 @@
-import {alignWindowCTC} from './analysis.js?v=14';
-import {mergeWordAlignment,shiftWord} from './word-timing.js?v=14';
+import {alignWindowCTC} from './analysis.js?v=16';
+import {mergeWordAlignment,shiftWord} from './word-timing.js?v=16';
 export function alignReplay(emissions,vocab,source,analysis){
  const aligned=[],duration=analysis.duration,supported=w=>/^[a-z']+$/i.test(w.word);
  // Unsupported tokens split the path rather than stretching adjacent words

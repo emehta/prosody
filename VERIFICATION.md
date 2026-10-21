@@ -1,6 +1,6 @@
 # GitHub Pages release verification
 
-127 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
+135 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
 
 ## Pitch and sentence endings
 
@@ -127,3 +127,25 @@ Browser checks used finite synthetic microphone input through the actual AudioWo
 A separate real-model integration check concatenated four synthetic words at known sample positions, with quiet intervals between them. All four formed confident CTC paths. Recovered starts were within 20 ms and ends within 47 ms of the fixture's protected acoustic-edge references in that run. This is a controlled synthetic boundary check, not a score for human accents or whispers.
 
 Added tests cover sample-scheduled word starts/stops, native-rate full replay, seeking, cancellation during AudioContext resume, completion events, steady noise/DC, short speech within a long wait, internal closures, soft final consonants, confidence/drift fallback, preserved session history, first-word cropping and measured character animation. The existing recording, upload, pitch-ending, rhythm contour, selection and virtual scrolling regressions pass. The existing latest-30-second Live audio replay limit remains unchanged.
+
+
+## Explicit Live start, pause separation and stable replay, 21 October 2026
+
+Choosing Live now selects a mode and centers its prompt without opening microphone input. The microphone button is the only capture trigger; previous automatic permission-based arming on load, focus, hover and visibility return is removed. Input is released after Stop. The centered prompt and initial measured line remain centered while waiting for the first transcript.
+
+Play during final analysis is queued. No audio source is scheduled until timing finishes, and the canvas uses the neutral starting pose while waiting. The Play button indicates queued work and can cancel it. Word clicks and seeking are withheld until timing is final. This prevents rough attention timestamps from running ahead of the sound, or a final alignment update from changing an already-playing timeline.
+
+Live recognition spans are now intersected with measured speech intervals before layout. Quiet intervals of at least 180 ms are excluded from duration, emphasis duration and provisional letter progress. Corrected duration can revise a previously cached stretch estimate. Ongoing silent tails use a short dashed space instead of consuming additional width. When a measured phrase break follows a word, a nearby release beyond a sparse model emission remains part of that word; this protects short greetings whose final vowel was previously cut short.
+
+New rows use a frame-driven 420 ms smooth transition. Repainting the same scroll target preserves the animation. Virtualization keeps both the current and destination ranges mounted during short transitions; user scrolling cancels the movement and holds the chosen position. New word groups have a brief entrance fade. Reduced-motion preferences retain an immediate static transition.
+
+Browser checks used finite synthetic native 48 kHz audio through the actual microphone worklet and speech workers. No human microphone was used and no recognition results were injected. The fixture contains an isolated hello, a three-second silent interval, then a normally spoken my name is phrase and several further lines.
+
+- Selecting Live made zero getUserMedia requests. The prompt box center matched the visualization center (369 px) and its initial line was centered beneath it.
+- During Live, my was assigned roughly 0.10 seconds of speech at the actual later onset, instead of the intervening multi-second pause. The pause remained a separate dashed connection.
+- Clicking Play immediately after Stop produced a queued button, a disabled seek bar and no scheduled AudioBufferSource. Final timing then started replay automatically from sample zero.
+- At the first detected replay sound, approximately 36 ms after source scheduling in the final onset monitor, the seek value and contour reveal were both zero. All opening glyphs had zero rotation and the same neutral baseline. The output presentation clock therefore did not put the visual cursor at the end of the first word before its sound.
+- An additional real-model diagnostic found the greeting's CTC confidence was low and its candidate ending too early. The regression now uses the measured phrase break to retain the complete final vowel while keeping the next word's pause excluded. The low-confidence model path remains marked uncertain. In the final browser pass, the greeting occupied 0.009–0.614 seconds of replay, followed by a separate pause; my occupied 3.607–3.782 seconds. At the first monitored sound the contour reveal was still zero and the opening letters remained neutral.
+- The fixed card remained 1044 x 564 px at 1280 x 720. Scroll-back still recovered the original first row after replay; following could be resumed independently.
+
+135 tests pass, including new regressions for continuous row motion without animation restarts, preservation of manual scroll position, pause-independent word stretch, frozen letter motion during silence, true held sounds, bounded dashed silent tails, neutral motion before the first audible word and the complete greeting release. Recognition and character boundaries remain estimates; this release does not establish a human-accent score.

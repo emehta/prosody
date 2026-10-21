@@ -27,3 +27,14 @@ test('Replay only follows the active row while following is enabled',()=>{
 test('Narrow viewport virtualization covers the viewport at its rendered scale',()=>{
  const r=transcriptWindow(100,1000,600,147);assert.ok(r.first*147<=1000);assert.ok(r.last*147>=1600);assert.ok(r.last-r.first<=10);
 });
+test('A new row scrolls continuously and rerenders cannot restart the transition',()=>{
+ const f=viewport(),callbacks=new Map();let id=0,now=0;
+ f.view.now=()=>now;f.view.frame=cb=>{callbacks.set(++id,cb);return id;};f.view.cancel=key=>callbacks.delete(key);
+ f.view.render('old',null,f.view.window(10,1100,208));const start=f.feed.scrollTop;
+ const range=f.view.window(11,1100,208);f.view.render('new',null,range);assert.equal(f.feed.scrollTop,start);
+ const tick=t=>{now=t;const list=[...callbacks.values()];callbacks.clear();list.forEach(cb=>cb(t));};
+ tick(100);const first=f.feed.scrollTop;assert.ok(first>start&&first<range.top);
+ f.view.render('same target',null,f.view.window(11,1100,208));tick(210);assert.ok(f.feed.scrollTop>first);assert.ok(Math.abs(f.feed.scrollTop-(start+range.top)/2)<1);
+ tick(420);assert.equal(f.feed.scrollTop,range.top);
+ f.view.render('another',null,f.view.window(12,1100,208));tick(500);const held=f.feed.scrollTop;f.view.pause();tick(800);assert.equal(f.feed.scrollTop,held);assert.equal(callbacks.size,0);
+});

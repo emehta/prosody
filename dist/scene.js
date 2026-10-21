@@ -1,18 +1,20 @@
-import {wordWidth,LETTERS} from './lettering.js?v=14';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=14';
-import {quantile} from './analysis.js?v=14';
-import {LIVE_ROW_HEIGHT,LIVE_TYPE_SCALE} from './live-layout.js?v=14';
+import {wordWidth,LETTERS} from './lettering.js?v=16';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=16';
+import {quantile} from './analysis.js?v=16';
+import {LIVE_ROW_HEIGHT,LIVE_TYPE_SCALE} from './live-layout.js?v=16';
+import {spokenDuration,spokenElapsed} from './word-timing.js?v=16';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const ease=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
 const f=n=>Number(n).toFixed(2);
 export function createScene(analysis,words,text,small=false,{flow=false}={}){
  const W=small?600:1100,pad=40,inner=W-pad*2,preferredScale=flow?LIVE_TYPE_SCALE:small?1.12:1.36,rowH=flow?LIVE_ROW_HEIGHT:294,minGap=25;
- const source=text.split(/\s+/),speed=quantile(words.filter(w=>!w.pending).map(w=>(w.end-w.start)/Math.max(1,wordWidth(w.word))),.5)||.002;
+ const source=text.split(/\s+/),speed=quantile(words.filter(w=>!w.pending).map(w=>spokenDuration(w)/Math.max(1,wordWidth(w.word))),.5)||.002;
  const items=words.map((w,i)=>{
   const display=w.word+(source[i]?.match(/[,.?]$/)?.[0]||''),natural=wordWidth(display,preferredScale);
-  const relative=((w.end-w.start)/Math.max(1,wordWidth(w.word)))/speed;
+  const relative=(spokenDuration(w)/Math.max(1,wordWidth(w.word)))/speed;
   const stretch=w.liveStretch??(w.pending?1:clamp(relative**.65,.62,1.95)),height=w.liveHeight??(w.pending?1:clamp(relative**.32,.76,1.45));
-  return {...w,index:i,display,natural,stretch,height,width:natural*Math.max(1,stretch),gap:i?(!w.pending&&!words[i-1].pending?clamp((w.start-words[i-1].end)*105,25,85):minGap):0,clause:source[i]?.endsWith(',')};
+  const characters=w.characters?.map(c=>({...c,speechSpans:w.speechSpans?.map(s=>({start:Math.max(s.start,c.start),end:Math.min(s.end,c.end)})).filter(s=>s.end>s.start)}));
+  return {...w,characters,index:i,display,natural,stretch,height,width:natural*Math.max(1,stretch),gap:i?(!w.pending&&!words[i-1].pending?clamp((w.start-words[i-1].end)*105,25,85):minGap):0,clause:source[i]?.endsWith(',')};
  });
  // Choose line breaks from ordinary lettering, independent of the delivery.
  // Reserve the widest animated pose, fitting the type uniformly and compressing
@@ -34,7 +36,7 @@ export function createScene(analysis,words,text,small=false,{flow=false}={}){
  function frame(time=null){
   const full=time===null,layouts=[],glyphs=[],marks=[],pauses=[];
   rows.forEach((row,r)=>{
-   const poses=row.map(w=>{const progress=full?1:ease((time-w.start)/Math.max(.01,w.end-w.start));return {...w,sx:1+(w.stretch-1)*progress,progress};});
+   const poses=row.map(w=>{const progress=full?1:ease(spokenElapsed(w,time)/Math.max(.01,spokenDuration(w)));return {...w,sx:1+(w.stretch-1)*progress,progress};});
    const used=poses.reduce((n,w)=>n+w.natural*w.sx+w.gap,0);let x=flow?pad:pad+(inner-used)/2;
    const anchors=[];
    for(const w of poses){
@@ -69,8 +71,8 @@ export function createScene(analysis,words,text,small=false,{flow=false}={}){
      const target=(contour.at(center)??row.base+15)-15;
      const slope=Math.atan2((contour.at(center+18)??target)-(contour.at(center-18)??target),36)*180/Math.PI;
      const angle=clamp(slope*.45+(target-row.base)/10,-15,15);
-     const measured=w.characters?.[i],letterTime=measured?.start??w.start+i/Math.max(1,w.display.length)*(w.end-w.start),letterEnd=measured?.end??w.start+(i+1)/Math.max(1,w.display.length)*(w.end-w.start);
-     const progress=full?1:ease((time-letterTime)/Math.max(.01,letterEnd-letterTime));
+     const measured=w.characters?.[i],elapsed=spokenElapsed(w,time),span=spokenDuration(w),letterTime=i/Math.max(1,w.display.length)*span,letterEnd=(i+1)/Math.max(1,w.display.length)*span;
+     const progress=full?1:measured?ease(spokenElapsed(measured,time)/Math.max(.01,spokenDuration(measured))):ease((elapsed-letterTime)/Math.max(.01,letterEnd-letterTime));
      const y=row.base+(target-row.base)*progress,rotation=angle*progress,sy=1+(w.height-1)*progress;
      const transform=`translate(${f(center)},${f(y)}) rotate(${f(rotation)}) scale(${f(scale*w.sx)},${f(scale*sy)}) translate(${f(-width/2)},0)`;
      glyphs.push({key:`${w.index}-${i}`,word:w.index,char,transform,x:center,y,rotation,sx:w.sx,sy,progress});offset+=width+6;

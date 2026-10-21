@@ -1,6 +1,7 @@
-import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=14';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=14';
-import {createScene} from './scene.js?v=14';
+import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=16';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=16';
+import {createScene} from './scene.js?v=16';
+import {quietIntervals} from './word-timing.js?v=16';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 export function promptSVG(text,small=false){
  const W=small?600:1100,pad=32,scale=small?1.12:1.36;
@@ -42,21 +43,24 @@ export function voiceSVG(analysis,words,text,small=false,{time=null,flow=false}=
 // extends beyond the last timed word; no earlier word is assigned that sound.
 export function liveTailSVG(analysis,scene,base=0,time=null){
  if(!scene)return '';
- const row=scene.rows.at(-1),layout=scene.frame(time).layouts.at(-1),start=base+row.end,end=Math.min(analysis.duration,start+2),x0=layout.xTime(row.end),room=scene.W-40-x0;
+ const row=scene.rows.at(-1),layout=scene.frame(time).layouts.at(-1),start=base+row.end,end=analysis.duration,x0=layout.xTime(row.end),room=scene.W-40-x0;
  if(end<=start||room<8)return '';
+ const bins=analysis.energy.filter(f=>f.end>start&&f.start<end),quiet=quietIntervals({...analysis,energy:bins});
+ const unmeasuredEnd=bins[0]?.start??end;if(unmeasuredEnd-start>=.18)quiet.unshift({start,end:unmeasuredEnd});
+ const gaps=[];for(const p of quiet){const last=gaps.at(-1);if(last&&p.start<=last.end+.02)last.end=Math.max(last.end,p.end);else gaps.push({...p});}
+ // A continuing pause occupies a small dashed space. It cannot consume the
+ // next word's width or grow into a long fictitious spoken sound.
+ const elapsed=t=>t-start-gaps.reduce((n,p)=>{const dt=Math.max(0,Math.min(t,p.end)-Math.max(start,p.start));return n+Math.max(0,dt-Math.min(.12,dt));},0);
  const height=scene.pitchHeight,hz=row.pitch.at(-1)?.hz||analysis.medianHz||160,anchors=[{t:start,hz},...pitchAnchors(analysis,[],start,end).filter(p=>p.t>start)];
  if(anchors.length===1)anchors.push({t:end,hz});
- const x=t=>x0+(t-start)*Math.min(170,room/Math.max(.01,end-start));
+ const x=t=>x0+elapsed(t)*Math.min(170,room/Math.max(.01,elapsed(end)));
  const d=curve(anchors.map(p=>({x:x(p.t),y:row.base+15-height(p.hz)}))).d,parts=[`<defs><path id="live-tail-path" d="${d}"/></defs><use href="#live-tail-path" class="pitch-line${row.pitch.length?'':' unvoiced-contour'}"/>`];
- const bins=analysis.energy.filter(f=>f.end>start&&f.start<end),ceiling=Math.max(0,...bins.map(f=>f.rms)),gate=Math.max(analysis.threshold,ceiling*.62);
- const quiet=[];let silence=null;if(!bins.length&&analysis.duration-start>=.18)quiet.push({start,end});
+ const ceiling=Math.max(0,...bins.map(f=>f.rms)),gate=Math.max(analysis.threshold,ceiling*.62);
  bins.forEach((f,i)=>{
   const left=x(Math.max(start,f.start)),right=x(Math.min(end,f.end));
   if(f.rms>=gate&&ceiling){const id=`tail-energy-${i}`;parts.push(`<defs><clipPath id="${id}"><rect x="${left}" y="${row.top-12}" width="${Math.max(0,right-left)}" height="${scene.rowH+24}"/></clipPath></defs><use href="#live-tail-path" class="word-mark" stroke-width="3" clip-path="url(#${id})"/>`);}
-  if(f.rms<analysis.threshold){silence??=Math.max(start,f.start);}else if(silence!==null){if(f.start-silence>=.18)quiet.push({start:silence,end:f.start});silence=null;}
  });
- if(silence!==null&&end-silence>=.18)quiet.push({start:silence,end});
- for(const [i,p] of quiet.entries()){const id=`tail-pause-${i}`;parts.push(`<defs><clipPath id="${id}"><rect x="${x(p.start)}" y="${row.top-12}" width="${x(p.end)-x(p.start)}" height="${scene.rowH+24}"/></clipPath></defs><use href="#live-tail-path" class="pause-erase" clip-path="url(#${id})"/><use href="#live-tail-path" class="pause-bridge" clip-path="url(#${id})"/>`);}
+ for(const [i,p] of gaps.entries()){const id=`tail-pause-${i}`;parts.push(`<defs><clipPath id="${id}"><rect x="${x(p.start)}" y="${row.top-12}" width="${x(p.end)-x(p.start)}" height="${scene.rowH+24}"/></clipPath></defs><use href="#live-tail-path" class="pause-erase" clip-path="url(#${id})"/><use href="#live-tail-path" class="pause-bridge" clip-path="url(#${id})"/>`);}
  return parts.join('');
 }
 

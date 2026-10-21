@@ -12,6 +12,7 @@ export class SamplePlayback{
  load(){this.pause();this.buffer=null;this.samples=null;this.position=0;this.ended=false;this.element.load();}
  setSamples(samples,rate){this.pause();this.samples=samples;this.rate=rate;this.buffer=null;this.position=0;this.ended=false;queueMicrotask(()=>this.onloadedmetadata?.());}
  get duration(){return this.samples?.length/this.rate||0;}
+ prepare(){this.context??=this.createContext();return this.context.resume();}
  heardTime(){
   const c=this.context,stamp=c.getOutputTimestamp?.();
   return stamp?.performanceTime>0?Math.min(c.currentTime,stamp.contextTime+Math.max(0,this.now()-stamp.performanceTime)/1000):Math.max(0,c.currentTime-(c.outputLatency??c.baseLatency??0));
