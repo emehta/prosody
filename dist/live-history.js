@@ -1,4 +1,4 @@
-import {shiftWord} from './word-timing.js?v=16';
+import {shiftWord} from './word-timing.js?v=17';
 // Retain the session independently of rolling inference and replay buffers.
 // Rendering is virtualized; older words and their contours remain reviewable.
 export class LiveHistory{

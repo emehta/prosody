@@ -5,6 +5,7 @@ export function shiftWord(w,delta){
  if(w.characters)out.characters=w.characters.map(c=>({...c,start:c.start+delta,end:c.end+delta}));
  for(const key of ['playStart','playEnd'])if(Number.isFinite(w[key]))out[key]=w[key]+delta;
  if(w.speechSpans)out.speechSpans=w.speechSpans.map(p=>({...p,start:p.start+delta,end:p.end+delta}));
+ if(w.pronunciation)out.pronunciation=w.pronunciation.map(p=>({...p,start:p.start+delta,end:p.end+delta,...(p.speechSpans?{speechSpans:p.speechSpans.map(s=>({start:s.start+delta,end:s.end+delta}))}:{})}));
  return out;
 }
 // Long quiet intervals belong to the space between sounds, never to a vowel's

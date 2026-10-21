@@ -1,0 +1,1279 @@
+[
+  {
+    "id": "british-clear",
+    "speaker": "Judith Franck",
+    "source": "https://commons.wikimedia.org/wiki/File:En-uk-water.ogg",
+    "context": false,
+    "milliseconds": 185.21220800000003,
+    "word": {
+      "word": "water",
+      "start": 0,
+      "end": 0.56,
+      "confidence": 0.95,
+      "characters": [
+        {
+          "char": "w",
+          "start": 0,
+          "end": 0.08
+        },
+        {
+          "char": "a",
+          "start": 0.08,
+          "end": 0.235
+        },
+        {
+          "char": "t",
+          "start": 0.235,
+          "end": 0.305
+        },
+        {
+          "char": "e",
+          "start": 0.305,
+          "end": 0.46480000000000005
+        },
+        {
+          "char": "r",
+          "start": 0.46480000000000005,
+          "end": 0.56
+        }
+      ]
+    },
+    "phones": [
+      {
+        "id": 32,
+        "phone": "w",
+        "kind": null,
+        "start": 0.09250000000000001,
+        "end": 0.11250000000000002,
+        "confidence": 0,
+        "margin": -0.00033735105814841507
+      },
+      {
+        "id": 49,
+        "phone": "oʊ",
+        "kind": "rounded-a",
+        "start": 0.15250000000000002,
+        "end": 0.17250000000000001,
+        "confidence": 0.612274649153145,
+        "margin": 0.6107856944831096
+      },
+      {
+        "id": 6,
+        "phone": "t",
+        "kind": "clear-t",
+        "start": 0.2925,
+        "end": 0.3125,
+        "confidence": 0.46820900187301623,
+        "margin": 0.08944281114072095
+      },
+      {
+        "id": 43,
+        "phone": "ɚ",
+        "kind": null,
+        "start": 0.37250000000000005,
+        "end": 0.39250000000000007,
+        "confidence": 0,
+        "margin": -0.007565325999213731
+      }
+    ],
+    "isolatedPhones": [
+      {
+        "id": 32,
+        "phone": "w",
+        "kind": null,
+        "start": 0.09250000000000001,
+        "end": 0.11250000000000002,
+        "confidence": 0,
+        "margin": -0.00033735105814841507
+      },
+      {
+        "id": 49,
+        "phone": "oʊ",
+        "kind": "rounded-a",
+        "start": 0.15250000000000002,
+        "end": 0.17250000000000001,
+        "confidence": 0.612274649153145,
+        "margin": 0.6107856944831096
+      },
+      {
+        "id": 6,
+        "phone": "t",
+        "kind": "clear-t",
+        "start": 0.2925,
+        "end": 0.3125,
+        "confidence": 0.46820900187301623,
+        "margin": 0.08944281114072095
+      },
+      {
+        "id": 43,
+        "phone": "ɚ",
+        "kind": null,
+        "start": 0.37250000000000005,
+        "end": 0.39250000000000007,
+        "confidence": 0,
+        "margin": -0.007565325999213731
+      }
+    ],
+    "annotations": [
+      {
+        "index": 1,
+        "kind": "rounded-a",
+        "start": 0.1325,
+        "end": 0.2325,
+        "confidence": 0.612274649153145,
+        "duration": 0.1,
+        "source": "phoneme-model"
+      }
+    ]
+  },
+  {
+    "id": "british-catch",
+    "speaker": "Emma",
+    "source": "https://www.youtube.com/watch?v=ljJrrGgoLOU&t=86",
+    "context": false,
+    "milliseconds": 273.409666,
+    "word": {
+      "word": "water",
+      "start": 0,
+      "end": 1.18,
+      "confidence": 0.95,
+      "characters": [
+        {
+          "char": "w",
+          "start": 0,
+          "end": 0.1
+        },
+        {
+          "char": "a",
+          "start": 0.1,
+          "end": 0.5
+        },
+        {
+          "char": "t",
+          "start": 0.5,
+          "end": 0.75
+        },
+        {
+          "char": "e",
+          "start": 0.75,
+          "end": 0.9793999999999999
+        },
+        {
+          "char": "r",
+          "start": 0.9793999999999999,
+          "end": 1.18
+        }
+      ]
+    },
+    "phones": [
+      {
+        "id": 13,
+        "phone": "m",
+        "kind": null,
+        "start": 0.1325,
+        "end": 0.1525,
+        "confidence": 0,
+        "margin": -0.0008422243023820674
+      },
+      {
+        "id": 34,
+        "phone": "u",
+        "kind": null,
+        "start": 0.21250000000000002,
+        "end": 0.2325,
+        "confidence": 0,
+        "margin": -0.04776094459599594
+      },
+      {
+        "id": 9,
+        "phone": "a",
+        "kind": null,
+        "start": 0.8125,
+        "end": 0.8325,
+        "confidence": 0,
+        "margin": -0.0014734817610819629
+      }
+    ],
+    "isolatedPhones": [
+      {
+        "id": 13,
+        "phone": "m",
+        "kind": null,
+        "start": 0.1325,
+        "end": 0.1525,
+        "confidence": 0,
+        "margin": -0.0008422243023820674
+      },
+      {
+        "id": 34,
+        "phone": "u",
+        "kind": null,
+        "start": 0.21250000000000002,
+        "end": 0.2325,
+        "confidence": 0,
+        "margin": -0.04776094459599594
+      },
+      {
+        "id": 9,
+        "phone": "a",
+        "kind": null,
+        "start": 0.8125,
+        "end": 0.8325,
+        "confidence": 0,
+        "margin": -0.0014734817610819629
+      }
+    ],
+    "annotations": []
+  },
+  {
+    "id": "american",
+    "speaker": "Dvortygirl",
+    "source": "https://commons.wikimedia.org/wiki/File:En-us-water.ogg",
+    "context": false,
+    "milliseconds": 144.76287500000012,
+    "word": {
+      "word": "water",
+      "start": 0,
+      "end": 0.475,
+      "confidence": 0.95,
+      "characters": [
+        {
+          "char": "w",
+          "start": 0,
+          "end": 0.09
+        },
+        {
+          "char": "a",
+          "start": 0.09,
+          "end": 0.205
+        },
+        {
+          "char": "t",
+          "start": 0.205,
+          "end": 0.26
+        },
+        {
+          "char": "e",
+          "start": 0.26,
+          "end": 0.39425
+        },
+        {
+          "char": "r",
+          "start": 0.39425,
+          "end": 0.475
+        }
+      ]
+    },
+    "phones": [
+      {
+        "id": 32,
+        "phone": "w",
+        "kind": null,
+        "start": 0.0725,
+        "end": 0.0925,
+        "confidence": 0,
+        "margin": -0.0003834576046069984
+      },
+      {
+        "id": 41,
+        "phone": "ɑː",
+        "kind": null,
+        "start": 0.1325,
+        "end": 0.1525,
+        "confidence": 0,
+        "margin": -0.24088695791387205
+      },
+      {
+        "id": 15,
+        "phone": "ɾ",
+        "kind": "tapped-t",
+        "start": 0.2525,
+        "end": 0.2725,
+        "confidence": 0.8284784979017589,
+        "margin": 0.7853236580424359
+      },
+      {
+        "id": 43,
+        "phone": "ɚ",
+        "kind": null,
+        "start": 0.2925,
+        "end": 0.3125,
+        "confidence": 0,
+        "margin": -0.01535521828780429
+      }
+    ],
+    "isolatedPhones": [
+      {
+        "id": 32,
+        "phone": "w",
+        "kind": null,
+        "start": 0.0725,
+        "end": 0.0925,
+        "confidence": 0,
+        "margin": -0.0003834576046069984
+      },
+      {
+        "id": 41,
+        "phone": "ɑː",
+        "kind": null,
+        "start": 0.1325,
+        "end": 0.1525,
+        "confidence": 0,
+        "margin": -0.24088695791387205
+      },
+      {
+        "id": 15,
+        "phone": "ɾ",
+        "kind": "tapped-t",
+        "start": 0.2525,
+        "end": 0.2725,
+        "confidence": 0.8284784979017589,
+        "margin": 0.7853236580424359
+      },
+      {
+        "id": 43,
+        "phone": "ɚ",
+        "kind": null,
+        "start": 0.2925,
+        "end": 0.3125,
+        "confidence": 0,
+        "margin": -0.01535521828780429
+      }
+    ],
+    "annotations": [
+      {
+        "index": 2,
+        "kind": "tapped-t",
+        "start": 0.2025,
+        "end": 0.2825,
+        "confidence": 0.8284784979017589,
+        "duration": 0.07999999999999996,
+        "source": "phoneme-model",
+        "viewAgreement": true
+      }
+    ]
+  },
+  {
+    "id": "indian",
+    "speaker": "Palki Sharma",
+    "source": "https://www.youtube.com/watch?v=RkedoUT2fKk&t=43",
+    "context": true,
+    "milliseconds": 198.520708,
+    "word": {
+      "word": "water",
+      "start": 0.6500000000000057,
+      "end": 1.1100000000000056,
+      "confidence": 0.95,
+      "characters": [
+        {
+          "char": "w",
+          "start": 0.6500000000000057,
+          "end": 0.7250000000000056
+        },
+        {
+          "char": "a",
+          "start": 0.7250000000000056,
+          "end": 0.8150000000000057
+        },
+        {
+          "char": "t",
+          "start": 0.8150000000000057,
+          "end": 0.8750000000000057
+        },
+        {
+          "char": "e",
+          "start": 0.8750000000000057,
+          "end": 1.0318000000000056
+        },
+        {
+          "char": "r",
+          "start": 1.0318000000000056,
+          "end": 1.1100000000000056
+        }
+      ]
+    },
+    "phones": [
+      {
+        "id": 8,
+        "phone": "l",
+        "kind": null,
+        "start": 0.05249999999999998,
+        "end": 0.07249999999999998,
+        "confidence": 0,
+        "margin": -0.00018591049489622514
+      },
+      {
+        "id": 14,
+        "phone": "ɛ",
+        "kind": null,
+        "start": 0.0725,
+        "end": 0.0925,
+        "confidence": 0,
+        "margin": -0.0003107046436633334
+      },
+      {
+        "id": 6,
+        "phone": "t",
+        "kind": "clear-t",
+        "start": 0.15250000000000002,
+        "end": 0.17250000000000001,
+        "confidence": 0.517363065076546,
+        "margin": 0.5167977753113561
+      },
+      {
+        "id": 23,
+        "phone": "f",
+        "kind": null,
+        "start": 0.23249999999999998,
+        "end": 0.2525,
+        "confidence": 0,
+        "margin": -0.002023895398588071
+      },
+      {
+        "id": 49,
+        "phone": "oʊ",
+        "kind": "rounded-a",
+        "start": 0.2925,
+        "end": 0.3125,
+        "confidence": 0.8070994173909742,
+        "margin": 0.8068688280587285
+      },
+      {
+        "id": 11,
+        "phone": "k",
+        "kind": null,
+        "start": 0.39249999999999996,
+        "end": 0.4125,
+        "confidence": 0,
+        "margin": -0.0002905099673226931
+      },
+      {
+        "id": 7,
+        "phone": "ə",
+        "kind": null,
+        "start": 0.4325,
+        "end": 0.4525,
+        "confidence": 0,
+        "margin": -0.007517194714503949
+      },
+      {
+        "id": 5,
+        "phone": "s",
+        "kind": null,
+        "start": 0.49250000000000005,
+        "end": 0.5125000000000001,
+        "confidence": 0,
+        "margin": -0.0006373690576685216
+      },
+      {
+        "id": 40,
+        "phone": "ɔ",
+        "kind": "rounded-a",
+        "start": 0.5525,
+        "end": 0.5725,
+        "confidence": 0.6582250701877336,
+        "margin": 0.6578873959476974
+      },
+      {
+        "id": 4,
+        "phone": "n",
+        "kind": null,
+        "start": 0.6125,
+        "end": 0.6325000000000001,
+        "confidence": 0,
+        "margin": -0.00006479999668585843
+      },
+      {
+        "id": 32,
+        "phone": "w",
+        "kind": null,
+        "start": 0.6924999999999999,
+        "end": 0.7124999999999999,
+        "confidence": 0,
+        "margin": -0.0011433794240629748
+      },
+      {
+        "id": 67,
+        "phone": "ɔː",
+        "kind": "rounded-a",
+        "start": 0.7324999999999999,
+        "end": 0.7525,
+        "confidence": 0.6836198781540482,
+        "margin": 0.6829937645350336
+      },
+      {
+        "id": 15,
+        "phone": "ɾ",
+        "kind": "tapped-t",
+        "start": 0.8525,
+        "end": 0.8725,
+        "confidence": 0.8649787021828442,
+        "margin": 0.7643146767365805
+      },
+      {
+        "id": 43,
+        "phone": "ɚ",
+        "kind": null,
+        "start": 0.8925000000000001,
+        "end": 0.9125000000000001,
+        "confidence": 0,
+        "margin": -0.011702018823649223
+      }
+    ],
+    "isolatedPhones": [
+      {
+        "id": 32,
+        "phone": "w",
+        "kind": null,
+        "start": 0.03249999999999999,
+        "end": 0.05249999999999999,
+        "confidence": 0,
+        "margin": -0.001071551037189477
+      },
+      {
+        "id": 67,
+        "phone": "ɔː",
+        "kind": "rounded-a",
+        "start": 0.09250000000000001,
+        "end": 0.11250000000000002,
+        "confidence": 0.6280060863863267,
+        "margin": 0.6264158538724924
+      },
+      {
+        "id": 6,
+        "phone": "t",
+        "kind": "clear-t",
+        "start": 0.1925,
+        "end": 0.2125,
+        "confidence": 0.5793603026945165,
+        "margin": 0.25031810323849674
+      },
+      {
+        "id": 43,
+        "phone": "ɚ",
+        "kind": null,
+        "start": 0.2525,
+        "end": 0.2725,
+        "confidence": 0,
+        "margin": -0.012986935643291038
+      }
+    ],
+    "annotations": [
+      {
+        "index": 1,
+        "kind": "rounded-a",
+        "start": 0.7224999999999999,
+        "end": 0.8025,
+        "confidence": 0.6836198781540482,
+        "duration": 0.08000000000000007,
+        "source": "phoneme-model"
+      }
+    ]
+  },
+  {
+    "id": "indian",
+    "speaker": "Sadhguru",
+    "source": "https://www.youtube.com/watch?v=uqdfZbv7hlM&t=75",
+    "context": true,
+    "milliseconds": 184.6991250000001,
+    "word": {
+      "word": "water",
+      "start": 0,
+      "end": 0.3,
+      "confidence": 0.95,
+      "characters": [
+        {
+          "char": "w",
+          "start": 0,
+          "end": 0.05
+        },
+        {
+          "char": "a",
+          "start": 0.05,
+          "end": 0.145
+        },
+        {
+          "char": "t",
+          "start": 0.145,
+          "end": 0.195
+        },
+        {
+          "char": "e",
+          "start": 0.195,
+          "end": 0.24899999999999997
+        },
+        {
+          "char": "r",
+          "start": 0.24899999999999997,
+          "end": 0.3
+        }
+      ]
+    },
+    "phones": [
+      {
+        "id": 32,
+        "phone": "w",
+        "kind": null,
+        "start": 0.05249999999999998,
+        "end": 0.07249999999999998,
+        "confidence": 0,
+        "margin": -0.0005581797791366797
+      },
+      {
+        "id": 67,
+        "phone": "ɔː",
+        "kind": "rounded-a",
+        "start": 0.09250000000000001,
+        "end": 0.11250000000000002,
+        "confidence": 0.5797962100149172,
+        "margin": 0.5789233325483414
+      },
+      {
+        "id": 15,
+        "phone": "ɾ",
+        "kind": "tapped-t",
+        "start": 0.1925,
+        "end": 0.2125,
+        "confidence": 0.5309746513624072,
+        "margin": 0.16076025658293386
+      },
+      {
+        "id": 43,
+        "phone": "ɚ",
+        "kind": null,
+        "start": 0.23249999999999998,
+        "end": 0.2525,
+        "confidence": 0,
+        "margin": -0.009609669391377829
+      },
+      {
+        "id": 22,
+        "phone": "ð",
+        "kind": null,
+        "start": 0.3325,
+        "end": 0.35250000000000004,
+        "confidence": 0,
+        "margin": -0.002576386506847106
+      },
+      {
+        "id": 36,
+        "phone": "æ",
+        "kind": null,
+        "start": 0.35250000000000004,
+        "end": 0.37250000000000005,
+        "confidence": 0,
+        "margin": -0.0010330379882956963
+      },
+      {
+        "id": 6,
+        "phone": "t",
+        "kind": "clear-t",
+        "start": 0.4525,
+        "end": 0.47250000000000003,
+        "confidence": 0.9397298812310121,
+        "margin": 0.9170542561616789
+      },
+      {
+        "id": 32,
+        "phone": "w",
+        "kind": null,
+        "start": 0.5325,
+        "end": 0.5525,
+        "confidence": 0,
+        "margin": -0.001025315970919396
+      },
+      {
+        "id": 30,
+        "phone": "iː",
+        "kind": null,
+        "start": 0.5525,
+        "end": 0.5725,
+        "confidence": 0,
+        "margin": -0.000572796077618709
+      },
+      {
+        "id": 12,
+        "phone": "d",
+        "kind": null,
+        "start": 0.6924999999999999,
+        "end": 0.7124999999999999,
+        "confidence": 0,
+        "margin": -0.02195570303624739
+      },
+      {
+        "id": 27,
+        "phone": "ɹ",
+        "kind": null,
+        "start": 0.7324999999999999,
+        "end": 0.7725,
+        "confidence": 0,
+        "margin": -0.0034866684426755595
+      },
+      {
+        "id": 17,
+        "phone": "ɪ",
+        "kind": null,
+        "start": 0.7925,
+        "end": 0.8125,
+        "confidence": 0,
+        "margin": -0.00010932116304748833
+      },
+      {
+        "id": 42,
+        "phone": "ŋ",
+        "kind": null,
+        "start": 0.9125000000000001,
+        "end": 0.9525000000000001,
+        "confidence": 0,
+        "margin": -0.00006280933205452777
+      },
+      {
+        "id": 11,
+        "phone": "k",
+        "kind": null,
+        "start": 1.0325,
+        "end": 1.0525,
+        "confidence": 0,
+        "margin": -0.0019286168946778964
+      }
+    ],
+    "isolatedPhones": [
+      {
+        "id": 25,
+        "phone": "v",
+        "kind": null,
+        "start": 0.05249999999999998,
+        "end": 0.07249999999999998,
+        "confidence": 0,
+        "margin": -0.0018236625918025173
+      },
+      {
+        "id": 40,
+        "phone": "ɔ",
+        "kind": "rounded-a",
+        "start": 0.09250000000000001,
+        "end": 0.11250000000000002,
+        "confidence": 0.438944123224567,
+        "margin": 0.4381110093394901
+      },
+      {
+        "id": 6,
+        "phone": "t",
+        "kind": "clear-t",
+        "start": 0.1925,
+        "end": 0.2125,
+        "confidence": 0.40128001554664944,
+        "margin": 0.21191720753260074
+      },
+      {
+        "id": 7,
+        "phone": "ə",
+        "kind": null,
+        "start": 0.23249999999999998,
+        "end": 0.2525,
+        "confidence": 0,
+        "margin": -0.005654939140087235
+      }
+    ],
+    "annotations": []
+  },
+  {
+    "id": "british-ending",
+    "speaker": "Emma",
+    "source": "https://www.youtube.com/watch?v=chcjHwWwVxQ&t=213",
+    "context": false,
+    "milliseconds": 147.10304199999973,
+    "word": {
+      "word": "late",
+      "start": 0,
+      "end": 0.49,
+      "confidence": 0.95,
+      "characters": [
+        {
+          "char": "l",
+          "start": 0,
+          "end": 0.1
+        },
+        {
+          "char": "a",
+          "start": 0.1,
+          "end": 0.34
+        },
+        {
+          "char": "t",
+          "start": 0.34,
+          "end": 0.42
+        },
+        {
+          "char": "e",
+          "start": 0.42,
+          "end": 0.40669999999999995
+        }
+      ]
+    },
+    "phones": [
+      {
+        "id": 22,
+        "phone": "ð",
+        "kind": null,
+        "start": 0.05249999999999998,
+        "end": 0.07249999999999998,
+        "confidence": 0,
+        "margin": -0.007245722538028156
+      },
+      {
+        "id": 44,
+        "phone": "eɪ",
+        "kind": null,
+        "start": 0.1325,
+        "end": 0.1525,
+        "confidence": 0,
+        "margin": -0.0031381691667329006
+      }
+    ],
+    "isolatedPhones": [
+      {
+        "id": 22,
+        "phone": "ð",
+        "kind": null,
+        "start": 0.05249999999999998,
+        "end": 0.07249999999999998,
+        "confidence": 0,
+        "margin": -0.007245722538028156
+      },
+      {
+        "id": 44,
+        "phone": "eɪ",
+        "kind": null,
+        "start": 0.1325,
+        "end": 0.1525,
+        "confidence": 0,
+        "margin": -0.0031381691667329006
+      }
+    ],
+    "annotations": []
+  },
+  {
+    "id": "indian-today",
+    "speaker": "Palki Sharma",
+    "source": "https://www.youtube.com/watch?v=RkedoUT2fKk&t=41",
+    "word": {
+      "word": "today",
+      "start": 0.6623026315789473,
+      "end": 0.9230263157894737,
+      "confidence": 0.9971870080134346,
+      "characters": [
+        {
+          "char": "t",
+          "start": 0.6623026315789473,
+          "end": 0.7324013157894737
+        },
+        {
+          "char": "o",
+          "start": 0.7324013157894737,
+          "end": 0.7825657894736842
+        },
+        {
+          "char": "d",
+          "start": 0.7825657894736842,
+          "end": 0.8427631578947368
+        },
+        {
+          "char": "a",
+          "start": 0.8427631578947368,
+          "end": 0.8828947368421052
+        },
+        {
+          "char": "y",
+          "start": 0.8828947368421052,
+          "end": 0.9230263157894737
+        }
+      ]
+    },
+    "phones": [
+      {
+        "id": 35,
+        "phone": "ɡ",
+        "kind": null,
+        "start": 0.03249999999999999,
+        "end": 0.05249999999999999,
+        "confidence": 0,
+        "margin": -0.00014510816517248858
+      },
+      {
+        "id": 21,
+        "phone": "z",
+        "kind": null,
+        "start": 0.09250000000000001,
+        "end": 0.11250000000000002,
+        "confidence": 0,
+        "margin": -0.0002691605139619867
+      },
+      {
+        "id": 36,
+        "phone": "æ",
+        "kind": null,
+        "start": 0.15250000000000002,
+        "end": 0.17250000000000001,
+        "confidence": 0,
+        "margin": -0.00046513189656894753
+      },
+      {
+        "id": 13,
+        "phone": "m",
+        "kind": null,
+        "start": 0.2725,
+        "end": 0.29250000000000004,
+        "confidence": 0,
+        "margin": -0.00003102923883057036
+      },
+      {
+        "id": 18,
+        "phone": "p",
+        "kind": null,
+        "start": 0.35250000000000004,
+        "end": 0.37250000000000005,
+        "confidence": 0,
+        "margin": -0.0008364213138199772
+      },
+      {
+        "id": 61,
+        "phone": "əl",
+        "kind": null,
+        "start": 0.39249999999999996,
+        "end": 0.4125,
+        "confidence": 0,
+        "margin": -0.05522271616730629
+      },
+      {
+        "id": 6,
+        "phone": "t",
+        "kind": "clear-t",
+        "start": 0.7124999999999999,
+        "end": 0.7324999999999999,
+        "confidence": 0.9822374565557028,
+        "margin": 0.9793986767284005
+      },
+      {
+        "id": 7,
+        "phone": "ə",
+        "kind": null,
+        "start": 0.7525,
+        "end": 0.7725,
+        "confidence": 0,
+        "margin": -0.002206637293842894
+      },
+      {
+        "id": 12,
+        "phone": "d",
+        "kind": null,
+        "start": 0.8125,
+        "end": 0.8325,
+        "confidence": 0,
+        "margin": -0.0013423483807034778
+      },
+      {
+        "id": 44,
+        "phone": "eɪ",
+        "kind": null,
+        "start": 0.8525,
+        "end": 0.8725,
+        "confidence": 0,
+        "margin": -0.0004361289217084218
+      },
+      {
+        "id": 21,
+        "phone": "z",
+        "kind": null,
+        "start": 0.9924999999999999,
+        "end": 1.0125,
+        "confidence": 0,
+        "margin": -0.00010022747862165175
+      },
+      {
+        "id": 32,
+        "phone": "w",
+        "kind": null,
+        "start": 1.0725,
+        "end": 1.0925,
+        "confidence": 0,
+        "margin": -0.0014213508686999725
+      },
+      {
+        "id": 63,
+        "phone": "ɜː",
+        "kind": null,
+        "start": 1.1125,
+        "end": 1.1325,
+        "confidence": 0,
+        "margin": -0.17508948550941847
+      },
+      {
+        "id": 8,
+        "phone": "l",
+        "kind": null,
+        "start": 1.2125000000000001,
+        "end": 1.2325000000000002,
+        "confidence": 0,
+        "margin": -0.0012505032806905637
+      },
+      {
+        "id": 12,
+        "phone": "d",
+        "kind": null,
+        "start": 1.2525,
+        "end": 1.2725,
+        "confidence": 0,
+        "margin": -0.02331053427944386
+      },
+      {
+        "id": 32,
+        "phone": "w",
+        "kind": null,
+        "start": 1.3325,
+        "end": 1.3525,
+        "confidence": 0,
+        "margin": -0.0005897072998716079
+      },
+      {
+        "id": 67,
+        "phone": "ɔː",
+        "kind": "rounded-a",
+        "start": 1.3725,
+        "end": 1.3925,
+        "confidence": 0.7333324524823261,
+        "margin": 0.732683404656836
+      },
+      {
+        "id": 15,
+        "phone": "ɾ",
+        "kind": "tapped-t",
+        "start": 1.4725000000000001,
+        "end": 1.4925000000000002,
+        "confidence": 0.8466771920709704,
+        "margin": 0.7511655028455321
+      },
+      {
+        "id": 43,
+        "phone": "ɚ",
+        "kind": null,
+        "start": 1.5325,
+        "end": 1.5525,
+        "confidence": 0,
+        "margin": -0.008001015970552926
+      },
+      {
+        "id": 12,
+        "phone": "d",
+        "kind": null,
+        "start": 1.6125,
+        "end": 1.6325,
+        "confidence": 0,
+        "margin": -0.0016597127952352952
+      },
+      {
+        "id": 44,
+        "phone": "eɪ",
+        "kind": null,
+        "start": 1.6525,
+        "end": 1.6725,
+        "confidence": 0,
+        "margin": -0.00027176259378122324
+      },
+      {
+        "id": 5,
+        "phone": "s",
+        "kind": null,
+        "start": 1.7925,
+        "end": 1.8125,
+        "confidence": 0,
+        "margin": -0.002105930353658365
+      },
+      {
+        "id": 43,
+        "phone": "ɚ",
+        "kind": null,
+        "start": 1.8325,
+        "end": 1.8525,
+        "confidence": 0,
+        "margin": -0.02801465792851559
+      },
+      {
+        "id": 8,
+        "phone": "l",
+        "kind": null,
+        "start": 1.8925,
+        "end": 1.9125,
+        "confidence": 0,
+        "margin": -0.00015195428373997858
+      },
+      {
+        "id": 14,
+        "phone": "ɛ",
+        "kind": null,
+        "start": 1.9325,
+        "end": 1.9525000000000001,
+        "confidence": 0,
+        "margin": -0.000700265694850327
+      },
+      {
+        "id": 5,
+        "phone": "s",
+        "kind": null,
+        "start": 2.0125,
+        "end": 2.0325,
+        "confidence": 0,
+        "margin": -0.06363421640261109
+      },
+      {
+        "id": 23,
+        "phone": "f",
+        "kind": null,
+        "start": 2.0925000000000002,
+        "end": 2.1125000000000003,
+        "confidence": 0,
+        "margin": -0.0007701146455520252
+      },
+      {
+        "id": 49,
+        "phone": "oʊ",
+        "kind": "rounded-a",
+        "start": 2.1325,
+        "end": 2.1525,
+        "confidence": 0.8765647911011896,
+        "margin": 0.8764214618217742
+      },
+      {
+        "id": 11,
+        "phone": "k",
+        "kind": null,
+        "start": 2.2325,
+        "end": 2.2525,
+        "confidence": 0,
+        "margin": -0.00019445753545092726
+      },
+      {
+        "id": 7,
+        "phone": "ə",
+        "kind": null,
+        "start": 2.2725,
+        "end": 2.2925,
+        "confidence": 0,
+        "margin": -0.003026623648097726
+      },
+      {
+        "id": 5,
+        "phone": "s",
+        "kind": null,
+        "start": 2.3525,
+        "end": 2.3725,
+        "confidence": 0,
+        "margin": -0.0004618778532289648
+      },
+      {
+        "id": 40,
+        "phone": "ɔ",
+        "kind": "rounded-a",
+        "start": 2.4125,
+        "end": 2.4325,
+        "confidence": 0.7109017006256034,
+        "margin": 0.7104640194961471
+      },
+      {
+        "id": 4,
+        "phone": "n",
+        "kind": null,
+        "start": 2.4725,
+        "end": 2.4925,
+        "confidence": 0,
+        "margin": -0.0003983373033002887
+      },
+      {
+        "id": 32,
+        "phone": "w",
+        "kind": null,
+        "start": 2.5325,
+        "end": 2.5525,
+        "confidence": 0,
+        "margin": -0.002358424856351796
+      },
+      {
+        "id": 67,
+        "phone": "ɔː",
+        "kind": "rounded-a",
+        "start": 2.5925000000000002,
+        "end": 2.6125000000000003,
+        "confidence": 0.7359444688334327,
+        "margin": 0.7350607988118911
+      },
+      {
+        "id": 15,
+        "phone": "ɾ",
+        "kind": "tapped-t",
+        "start": 2.6925,
+        "end": 2.7125,
+        "confidence": 0.8676051970177743,
+        "margin": 0.7801081619787059
+      },
+      {
+        "id": 43,
+        "phone": "ɚ",
+        "kind": null,
+        "start": 2.7525,
+        "end": 2.7725,
+        "confidence": 0,
+        "margin": -0.00845023561067259
+      }
+    ],
+    "isolatedPhones": [
+      {
+        "id": 6,
+        "phone": "t",
+        "kind": "clear-t",
+        "start": 0.05249999999999998,
+        "end": 0.07249999999999998,
+        "confidence": 0.9262861501795667,
+        "margin": 0.9214257615173951
+      },
+      {
+        "id": 136,
+        "phone": "ʉ",
+        "kind": null,
+        "start": 0.09250000000000001,
+        "end": 0.11250000000000002,
+        "confidence": 0,
+        "margin": -0.024371774759705003
+      },
+      {
+        "id": 12,
+        "phone": "d",
+        "kind": null,
+        "start": 0.15250000000000002,
+        "end": 0.17250000000000001,
+        "confidence": 0,
+        "margin": -0.013418360957154795
+      },
+      {
+        "id": 44,
+        "phone": "eɪ",
+        "kind": null,
+        "start": 0.1725,
+        "end": 0.19249999999999998,
+        "confidence": 0,
+        "margin": -0.00046405471500396455
+      }
+    ],
+    "annotations": [
+      {
+        "index": 0,
+        "kind": "clear-t",
+        "start": 0.6623026315789473,
+        "end": 0.7424999999999999,
+        "confidence": 0.9822374565557028,
+        "duration": 0.08019736842105263,
+        "source": "phoneme-model",
+        "viewAgreement": true
+      }
+    ]
+  }
+]

@@ -1,3 +1,12 @@
+## 21 October 2026 — Approved pronunciation treatments (v17)
+
+- `npm test`: 148 tests passed, including 13 new pronunciation checks. Existing capture, trim, replay, contour, Live history and viewport checks remain green.
+- Seven real-human speech excerpts were processed with the pinned q8 phoneme model. British rounded A and an American tap were supported. Palki Sharma’s clear initial T in “today” agreed between phrase and isolated-word inference. Her context-dependent T in “water” was rejected rather than forced into an accent template. Other unsupported clips stayed unmarked. Fixtures retain model evidence and source links, with no human audio bundled.
+- Chromium local browser: native human WAV upload, selection, Whisper dictation, CTC refinement, background WASM phoneme inference and rendered gold letter treatments completed without console errors. A clean Palki phrase displayed the open capital T and rounded As in “water”. Light/dark rendering, play/pause and seeking were checked. Seeking to zero restored ordinary black letter outlines and zero pronunciation reveal before speech.
+- Pronunciation uses the exact trimmed replay analysis samples. Continuous Live windows retain absolute session coordinates; word crops and annotations shift into replay/viewport coordinates together. Native replay audio and the presentation clock are unchanged.
+- The British A treatment scales its existing outline vertically by 1.48–1.82 according to measured vowel duration, in addition to ordinary duration motion. Clear T uses the approved B outline. Spelling is retained; no O replaces A. Upload dictation now uses Whisper followed by acoustic alignment, avoiding the old greedy CTC “watter” spelling in the spot check.
+- Precision limit: phonetic labels and boundaries are model estimates, not accent identity or a clinically/linguistically validated classifier. Conflicting consonant views and uncertain word timing abstain. Phone inference loads about 315 MB on first use, runs independently and does not gate capture or replay. Live is coalesced; word-crop confirmation is capped at 32 per submitted window. This small source check does not establish general phoneme accuracy.
+
 # GitHub Pages release verification
 
 135 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.

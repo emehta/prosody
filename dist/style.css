@@ -49,3 +49,5 @@ body{height:100dvh;min-height:480px;display:flex;flex-direction:column}
 .sentence-picker button:disabled{opacity:.65}
 .pitch-line.unvoiced-contour{stroke:var(--muted);stroke-dasharray:2 6;opacity:.5}
 @media(max-width:600px){.wrap{width:calc(100% - 24px)}.workspace{padding-bottom:12px}.studio .canvas-panel{padding-top:18px}.latest-button{right:12px;bottom:6px}}
+
+.lettering .pronunciation-ink path{stroke:#b18b2d}:where([data-theme="dark"]) .lettering .pronunciation-ink path{stroke:#d8b55e}

@@ -1,5 +1,5 @@
-import {LiveDictation,DICTATION_MODEL,DICTATION_REVISION,recognitionAudio,whisperWords} from './dictation.js?v=16';
-let enginePromise=null,session=null,latestId=-1;
+import {LiveDictation,DICTATION_MODEL,DICTATION_REVISION,recognitionAudio,whisperWords} from './dictation.js?v=17';
+let enginePromise=null,session=null,latestId=-1,inferenceQueue=Promise.resolve();
 async function engine(){
  if(!enginePromise)enginePromise=(async()=>{
   const {pipeline,env}=await import('./vendor/transformers.js');env.allowLocalModels=false;
@@ -9,7 +9,7 @@ async function engine(){
   self.postMessage({type:'ready',threads,model:DICTATION_MODEL});return asr;
  })().catch(error=>{enginePromise=null;throw error;});return enginePromise;
 }
-async function infer(samples){const asr=await engine();return asr(samples,{return_timestamps:'word',do_sample:false,num_beams:1,max_new_tokens:192});}
+function infer(samples){const job=inferenceQueue.catch(()=>{}).then(async()=>{const asr=await engine();return asr(samples,{return_timestamps:'word',do_sample:false,num_beams:1,max_new_tokens:192});});inferenceQueue=job;return job;}
 self.onmessage=async({data})=>{
  const {type,id}=data;
  try{

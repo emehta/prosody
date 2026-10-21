@@ -45,11 +45,15 @@ The contour uses 20 ms anchors from 10 ms YIN frames, short confidence-weighted 
 
 ## Analysis
 
-YIN measures voiced pitch over 65–650 Hz with 40 ms windows and 10 ms hops. Live word timing comes from Whisper attention timestamps. Sample timing uses pinned Wav2Vec2 CTC alignment with a separate greedy-transcript match check; uploads retain their existing CTC transcription path. Overlapping inference windows are processed while recording; 30-second uploads also use bounded windows, avoiding one oversized inference call; cancellation prevents older takes replacing newer results. Up to four WASM threads are used where isolation is available. The same-origin service worker only adds isolation headers to network GET responses; it caches no audio, assets or credentials and skips cross-origin requests and POST.
+YIN measures voiced pitch over 65–650 Hz with 40 ms windows and 10 ms hops. Live word timing comes from Whisper attention timestamps. Sample timing uses pinned Wav2Vec2 CTC alignment with a separate greedy-transcript match check; uploads use Whisper for ordinary English spelling, followed by CTC acoustic alignment. Overlapping inference windows are processed while recording; 30-second uploads also use bounded windows, avoiding one oversized inference call; cancellation prevents older takes replacing newer results. Up to four WASM threads are used where isolation is available. The same-origin service worker only adds isolation headers to network GET responses; it caches no audio, assets or credentials and skips cross-origin requests and POST.
 
 Quiet Live input uses adaptive activity detection and gain on a separate recognition copy. Replay PCM and measured energy are unchanged. Whispered speech does not need voiced pitch to be transcribed; a fully unvoiced row uses a neutral dashed timing baseline. Genuine whispers can lack measurable F0.
 
-Pitch, word timing and prominence remain estimates. There is no automatic accent or consonant classifier. No manually annotated human-voice benchmark has been completed. Playback quality also depends on the microphone and system audio route.
+Pitch, word timing, prominence and pronunciation remain estimates. Pronunciation uses an additional on-device, pinned multilingual phoneme model (about 315 MB, cached after the first download). Broad rounded-vowel evidence can elongate a written A without respelling it; sufficiently supported clear T evidence uses the selected open capital-T treatment. A confident tapped T uses a small raised D-like letter, and a positively detected throat catch uses a raised T. No missing sound is inferred simply because a phoneme is absent. There is no nationality or accent classifier. Playback quality also depends on the microphone and system audio route.
+
+Pronunciation analysis runs separately after word recognition and does not gate capture, the pitch display or playback. Live submits coalesced six-second windows; each phoneme inference is bounded to four seconds with overlap, using one WASM thread. Completed takes analyze the trimmed replay samples. A T treatment requires agreeing phrase-context and isolated-word predictions. Ambiguous, conflicting, poorly timed or unsupported sounds remain ordinary lettering. Word-crop confirmation is capped at 32 candidates per submitted window; remaining unconfirmed consonants stay plain. Vowel enlargement excludes measured quiet spans. Late results cannot annotate a cleared take. Geometry changes wait until a running replay pauses or completes.
+
+Seven real human excerpts, including the British and Indian preview sources, are checked offline. The small check demonstrates particular outputs and abstentions; it is not a general accent or phoneme-accuracy benchmark. In particular, a context-dependent T prediction in the Palki excerpt is rejected rather than forcing the Indian visual treatment. No human clips are bundled with this release.
 
 ## Source map
 
@@ -68,7 +72,10 @@ Pitch, word timing and prominence remain estimates. There is no automatic accent
 - `scene.js` / `view.js` / `contour.js`: measured geometry and synchronized motion.
 - `lettering.js`: monoline letterforms.
 
-The pronunciation study outside this repository is deferred and excluded from deployment.
+The disposable accent-study pages and their human audio remain outside this repository and deployment. The approved letter treatments are integrated into the application through audio-based pronunciation estimates.
+
+- `pronunciation.js`: positive phoneme evidence, letter association, consistency checks and approved letter shapes.
+- `pronunciation-worker.js` / `pronunciation-client.js`: bounded, generation-safe background inference and session annotation updates.
 
 ## References and licenses
 
@@ -76,6 +83,7 @@ The pronunciation study outside this repository is deferred and excluded from de
 - [YIN](http://audition.ens.fr/adc/pdf/2002_JASA_YIN.pdf), de Cheveigné & Kawahara (2002).
 - [Wav2Vec2 model](https://huggingface.co/Xenova/wav2vec2-base-960h), revision `a19f851b3d42865797e410752b4c570c871e4825`, Apache 2.0.
 - [Whisper base.en model](https://huggingface.co/Xenova/whisper-base.en), revision `95bf40a508535962c6483ead40270b2e32267508`.
+- [Phoneme model](https://huggingface.co/onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX), revision `c69750f5043e5e1f8a71ab95dd3b98338c280c92`, Apache 2.0, derived from Meta’s multilingual Common Voice phoneme recognizer.
 - Transformers.js, Apache 2.0; ONNX Runtime, MIT; DM Sans, SIL Open Font License. Bundled licenses are retained.
 - The bundled test/example audio is macOS Samantha synthetic speech, retained at 48 kHz. No Play an Example action is shown in the guide.
 

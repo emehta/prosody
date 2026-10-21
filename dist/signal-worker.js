@@ -1,5 +1,5 @@
-import {analyze} from './analysis.js?v=16';
-import {LiveAcoustics} from './live-analysis.js?v=16';
+import {analyze} from './analysis.js?v=17';
+import {LiveAcoustics} from './live-analysis.js?v=17';
 let live=null,liveId=-1;
 self.onmessage=({data})=>{
  const started=performance.now();

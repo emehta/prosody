@@ -1,7 +1,8 @@
-import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=16';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=16';
-import {createScene} from './scene.js?v=16';
-import {quietIntervals} from './word-timing.js?v=16';
+import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=17';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=17';
+import {createScene} from './scene.js?v=17';
+import {quietIntervals} from './word-timing.js?v=17';
+import {CLEAR_T_PATHS} from './pronunciation.js?v=17';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 export function promptSVG(text,small=false){
  const W=small?600:1100,pad=32,scale=small?1.12:1.36;
@@ -32,7 +33,13 @@ export function voiceSVG(analysis,words,text,small=false,{time=null,flow=false}=
   parts.push('</g>');
   for(const w of layout.words){
    parts.push(`<g class="word" data-word="${w.index}" role="button" tabindex="0" aria-label="Play ${esc(w.word)}, ${(w.end-w.start).toFixed(2)} seconds${w.uncertain?', uncertain timing':''}"><g class="lettering">`);
-   for(const glyph of frame.glyphs.filter(g=>g.word===w.index))parts.push(`<g class="letter" data-letter="${glyph.key}" transform="${glyph.transform}">${(LETTERS[glyph.char]?.paths||[]).map(d=>`<path d="${d}"/>`).join('')}</g>`);
+   for(const glyph of frame.glyphs.filter(g=>g.word===w.index)){
+    const original=(LETTERS[glyph.char]?.paths||[]).map(d=>`<path d="${d}"/>`).join(''),phone=glyph.pronunciation,p=glyph.phoneProgress;
+    let alternate=original;
+    if(phone==='clear-t')alternate=`<g transform="scale(${LETTERS.t.width/35},1)">${CLEAR_T_PATHS.map(d=>`<path d="${d}"/>`).join('')}</g>`;
+    if(phone==='tapped-t')alternate=`<g opacity=".3">${original}</g><g transform="translate(10,-37) scale(.5)">${LETTERS.d.paths.map(d=>`<path d="${d}"/>`).join('')}</g>`;
+    parts.push(`<g class="letter${phone?' pronunciation-letter':''}" data-letter="${glyph.key}"${phone?` data-pronunciation="${phone}"`:''} transform="${glyph.transform}">${phone?`<g data-letter-original opacity="${1-p}">${original}</g><g class="pronunciation-ink" data-letter-pronunciation opacity="${p}">${alternate}</g>`:original}</g>`);
+   }
    parts.push(`</g><rect class="word-hit" data-hit="${w.index}" x="${w.x-5}" y="${top-10}" width="${w.currentWidth+10}" height="${rowH}"/></g>`);
   }
  }
@@ -77,7 +84,7 @@ export function bindMotion(container,scene,{live=false}={}){
  return time=>{
   const frame=scene.frame(time);
   frame.layouts.forEach((l,r)=>{paths[r].setAttribute('d',l.d);reveals[r].setAttribute('width',live?scene.W:l.reveal);for(const w of l.words){hits.get(w.index).setAttribute('x',w.x-5);hits.get(w.index).setAttribute('width',w.currentWidth+10);}});
-  for(const glyph of frame.glyphs)glyphs.get(glyph.key).setAttribute('transform',glyph.transform);
+  for(const glyph of frame.glyphs){const el=glyphs.get(glyph.key);el.setAttribute('transform',glyph.transform);if(glyph.pronunciation){el.querySelector('[data-letter-original]').setAttribute('opacity',1-glyph.phoneProgress);el.querySelector('[data-letter-pronunciation]').setAttribute('opacity',glyph.phoneProgress);}}
   for(const mark of frame.marks){const el=clips.get(mark.key);el.setAttribute('x',mark.x);el.setAttribute('width',mark.width);marks.get(mark.key).setAttribute('opacity',live?1:mark.opacity);}
   for(const p of frame.pauses){const el=pauses.get(p.key);el.setAttribute('x',p.x);el.setAttribute('width',p.width);}
  };

@@ -1,5 +1,5 @@
 // All times are seconds. Analysis works on mono, 16 kHz PCM.
-import {shiftWord,spokenDuration} from './word-timing.js?v=16';
+import {shiftWord,spokenDuration} from './word-timing.js?v=17';
 export const RATE = 16000;
 export const HOP = 160;
 export const WINDOW = 640;

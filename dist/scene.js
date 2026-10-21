@@ -1,8 +1,9 @@
-import {wordWidth,LETTERS} from './lettering.js?v=16';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=16';
-import {quantile} from './analysis.js?v=16';
-import {LIVE_ROW_HEIGHT,LIVE_TYPE_SCALE} from './live-layout.js?v=16';
-import {spokenDuration,spokenElapsed} from './word-timing.js?v=16';
+import {wordWidth,LETTERS} from './lettering.js?v=17';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=17';
+import {quantile} from './analysis.js?v=17';
+import {LIVE_ROW_HEIGHT,LIVE_TYPE_SCALE} from './live-layout.js?v=17';
+import {spokenDuration,spokenElapsed} from './word-timing.js?v=17';
+import {pronunciationFeatures,pronunciationShape} from './pronunciation.js?v=17';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const ease=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
 const f=n=>Number(n).toFixed(2);
@@ -11,10 +12,12 @@ export function createScene(analysis,words,text,small=false,{flow=false}={}){
  const source=text.split(/\s+/),speed=quantile(words.filter(w=>!w.pending).map(w=>spokenDuration(w)/Math.max(1,wordWidth(w.word))),.5)||.002;
  const items=words.map((w,i)=>{
   const display=w.word+(source[i]?.match(/[,.?]$/)?.[0]||''),natural=wordWidth(display,preferredScale);
+  const letterShapes=[...display.toLowerCase()].map((char,index)=>{const feature=pronunciationFeatures(w,index),shape=pronunciationShape(feature,spokenDuration(w));return {feature,...shape,width:LETTERS[char]?.width??12};});
+  const extra=letterShapes.reduce((n,s)=>n+s.width*Math.max(0,s.sx-1)*preferredScale,0);
   const relative=(spokenDuration(w)/Math.max(1,wordWidth(w.word)))/speed;
   const stretch=w.liveStretch??(w.pending?1:clamp(relative**.65,.62,1.95)),height=w.liveHeight??(w.pending?1:clamp(relative**.32,.76,1.45));
   const characters=w.characters?.map(c=>({...c,speechSpans:w.speechSpans?.map(s=>({start:Math.max(s.start,c.start),end:Math.min(s.end,c.end)})).filter(s=>s.end>s.start)}));
-  return {...w,characters,index:i,display,natural,stretch,height,width:natural*Math.max(1,stretch),gap:i?(!w.pending&&!words[i-1].pending?clamp((w.start-words[i-1].end)*105,25,85):minGap):0,clause:source[i]?.endsWith(',')};
+  return {...w,characters,index:i,display,natural,extra,letterShapes,stretch,height,width:(natural+extra)*Math.max(1,stretch),gap:i?(!w.pending&&!words[i-1].pending?clamp((w.start-words[i-1].end)*105,25,85):minGap):0,clause:source[i]?.endsWith(',')};
  });
  // Choose line breaks from ordinary lettering, independent of the delivery.
  // Reserve the widest animated pose, fitting the type uniformly and compressing
@@ -26,7 +29,7 @@ export function createScene(analysis,words,text,small=false,{flow=false}={}){
   const reserved=row.reduce((n,w)=>n+items[w.index].width*fit,0),baseGaps=(row.length-1)*minGap;
   const extraGaps=row.reduce((n,w,i)=>n+(i?items[w.index].gap-minGap:0),0);
   const gapFit=extraGaps?clamp((inner-reserved-baseGaps)/extraGaps,0,1):1;
-  row.forEach((w,i)=>{w.natural*=fit;w.width=items[w.index].width*fit;w.gap=i?minGap+(items[w.index].gap-minGap)*gapFit:0;});
+  row.forEach((w,i)=>{w.natural*=fit;w.extra*=fit;w.width=items[w.index].width*fit;w.gap=i?minGap+(items[w.index].gap-minGap)*gapFit:0;});
   let start=row[0].start,end=row.at(-1).end;
   start=r?(rows[r-1].at(-1).end+start)/2:Math.max(0,Math.min(start,analysis.speechStart));
   end=r<rows.length-1?(end+rows[r+1][0].start)/2:Math.min(analysis.duration,Math.max(end,analysis.speechEnd));
@@ -36,11 +39,16 @@ export function createScene(analysis,words,text,small=false,{flow=false}={}){
  function frame(time=null){
   const full=time===null,layouts=[],glyphs=[],marks=[],pauses=[];
   rows.forEach((row,r)=>{
-   const poses=row.map(w=>{const progress=full?1:ease(spokenElapsed(w,time)/Math.max(.01,spokenDuration(w)));return {...w,sx:1+(w.stretch-1)*progress,progress};});
-   const used=poses.reduce((n,w)=>n+w.natural*w.sx+w.gap,0);let x=flow?pad:pad+(inner-used)/2;
+   const poses=row.map(w=>{
+    const progress=full?1:ease(spokenElapsed(w,time)/Math.max(.01,spokenDuration(w))),sx=1+(w.stretch-1)*progress;
+    const shapes=w.letterShapes.map(s=>{const p=!s.feature?0:full?1:ease(spokenElapsed(s.feature,time)/Math.max(.02,spokenDuration(s.feature)));return {...s,progress:p,currentX:1+(s.sx-1)*p,currentY:1+(s.sy-1)*p};});
+    const extra=shapes.reduce((n,s)=>n+s.width*(s.currentX-1)*scale,0);
+    return {...w,sx,progress,shapes,currentWidth:(w.natural+extra)*sx};
+   });
+   const used=poses.reduce((n,w)=>n+w.currentWidth+w.gap,0);let x=flow?pad:pad+(inner-used)/2;
    const anchors=[];
    for(const w of poses){
-    x+=w.gap;w.x=x;w.currentWidth=w.natural*w.sx;
+    x+=w.gap;w.x=x;
     const start=w.index===0?Math.min(w.start,analysis.speechStart):w.start,end=w.index===words.length-1?Math.max(w.end,analysis.speechEnd):w.end;
     anchors.push({t:start,x},{t:end,x:x+w.currentWidth});x+=w.currentWidth;
    }
@@ -67,15 +75,15 @@ export function createScene(analysis,words,text,small=false,{flow=false}={}){
     });
     let offset=0;
     [...w.display.toLowerCase()].forEach((char,i)=>{
-     const glyph=LETTERS[char],width=glyph?.width??12,center=w.x+(offset+width/2)*scale*w.sx;
+     const glyph=LETTERS[char],width=glyph?.width??12,shape=w.shapes[i],displayWidth=width*shape.currentX,center=w.x+(offset+displayWidth/2)*scale*w.sx;
      const target=(contour.at(center)??row.base+15)-15;
      const slope=Math.atan2((contour.at(center+18)??target)-(contour.at(center-18)??target),36)*180/Math.PI;
      const angle=clamp(slope*.45+(target-row.base)/10,-15,15);
      const measured=w.characters?.[i],elapsed=spokenElapsed(w,time),span=spokenDuration(w),letterTime=i/Math.max(1,w.display.length)*span,letterEnd=(i+1)/Math.max(1,w.display.length)*span;
      const progress=full?1:measured?ease(spokenElapsed(measured,time)/Math.max(.01,spokenDuration(measured))):ease((elapsed-letterTime)/Math.max(.01,letterEnd-letterTime));
-     const y=row.base+(target-row.base)*progress,rotation=angle*progress,sy=1+(w.height-1)*progress;
-     const transform=`translate(${f(center)},${f(y)}) rotate(${f(rotation)}) scale(${f(scale*w.sx)},${f(scale*sy)}) translate(${f(-width/2)},0)`;
-     glyphs.push({key:`${w.index}-${i}`,word:w.index,char,transform,x:center,y,rotation,sx:w.sx,sy,progress});offset+=width+6;
+     const y=row.base+(target-row.base)*progress-(shape.lift||0)*shape.progress,rotation=angle*progress,sy=(1+(w.height-1)*progress)*shape.currentY;
+     const transform=`translate(${f(center)},${f(y)}) rotate(${f(rotation)}) scale(${f(scale*w.sx*shape.currentX)},${f(scale*sy)}) translate(${f(-width/2)},0)`;
+     glyphs.push({key:`${w.index}-${i}`,word:w.index,char,transform,x:center,y,rotation,sx:w.sx*shape.currentX,sy,progress,pronunciation:shape.variant,phoneProgress:shape.progress});offset+=displayWidth+6;
     });
    }
    analysis.pauses.forEach((p,i)=>{
