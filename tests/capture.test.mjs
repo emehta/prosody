@@ -32,3 +32,11 @@ test('A reused worklet preserves the first block, isolates takes, and ignores st
  const take=messages.filter(m=>m.id===2);assert.equal(take[0].started,true);assert.equal(take.filter(m=>m.samples).length,1);
  assert.equal(take.find(m=>m.samples).samples.length,128);assert.ok(Math.abs(take.find(m=>m.samples).samples[0]-.4)<1e-6);
 });
+
+test('Live capture continues beyond the ordinary sample cap and stops only on command',()=>{
+ const {processor,messages}=create();processor.maxSamples=200;processor.port.onmessage({data:{type:'start',id:2,continuous:true}});
+ for(let i=0;i<5000;i++)processor.process([[new Float32Array(128).fill(.2)]],[]);
+ assert.equal(messages.filter(m=>m.stopped).length,0);assert.equal(processor.total,640000);
+ processor.port.onmessage({data:{type:'stop',id:2}});assert.equal(messages.filter(m=>m.stopped).length,1);
+ processor.port.onmessage({data:{type:'start',id:3}});processor.process([[new Float32Array(256)]],[]);assert.equal(messages.filter(m=>m.id===3&&m.stopped).length,1);
+});

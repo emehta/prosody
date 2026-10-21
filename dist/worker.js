@@ -1,6 +1,8 @@
-import {alignWindowCTC,transcribeWindowCTC,alignPrefixCTC,MODEL,MODEL_REVISION,RATE} from './analysis.js?v=8';
+import {alignWindowCTC,transcribeWindowCTC,MODEL,MODEL_REVISION,RATE} from './analysis.js?v=8';
 import {MAX_SECONDS} from './limits.js?v=8';
 import {StreamingCTC} from './streaming.js';
+import {LiveCTC} from './live-streaming.js?v=10';
+import {transcribeLiveCTC} from './live-transcript.js?v=10';
 let enginePromise=null,inferenceQueue=Promise.resolve(),session=null,latestId=-1;
 async function engine(){
   if(!enginePromise)enginePromise=(async()=>{
@@ -24,24 +26,34 @@ function infer(samples){
     try{return {data:logits.data.slice(),dims:[...logits.dims]};}finally{logits.dispose?.();}
   });inferenceQueue=job;return job;
 }
-function newSession(id,text='',live=false){
- const next=new StreamingCTC(infer,MAX_SECONDS*RATE,live?{blockFrames:25,rightContext:4400,onBlock:async emissions=>{
-  if(session!==next||id!==latestId)return;
-  const {vocab}=await engine(),result=alignPrefixCTC(emissions.data,emissions.dims,text,vocab,emissions.dims.at(-2)*.02);
-  if(result&&session===next&&id===latestId)self.postMessage({type:'live-aligned',id,result});
- }}:{});
- return next;
+async function liveTranscript(emissions){const {vocab}=await engine();return transcribeLiveCTC(emissions,vocab);}
+
+function newSession(id,live=false){
+ if(!live)return new StreamingCTC(infer,MAX_SECONDS*RATE);
+ const next=new LiveCTC(infer,{onBlock:async emissions=>{
+  if(session!==next||id!==latestId)return;const result=await liveTranscript(emissions);
+  if(session===next&&id===latestId)self.postMessage({type:'live-aligned',id,result});
+ },onError:error=>{if(session===next&&id===latestId)self.postMessage({type:'error',id,message:error.message});}});return next;
 }
 self.onmessage=async({data})=>{
   const {type,id,samples,text,offset=0,playbackDuration=samples?.length/16000}=data;
   try{
     if(type==='load'){await engine();return;}
     if(type==='cancel'){session?.cancel();session=null;latestId=id;return;}
-    if(type==='start'){session?.cancel();latestId=id;session=newSession(id,text,data.live);return;}
+    if(type==='start'){session?.cancel();latestId=id;session=newSession(id,data.live);return;}
     if(type==='chunk'){if(id===latestId)session?.append(samples);return;}
+    if(type==='retry-live'){const current=session;await engine();if(id===latestId&&session===current&&current instanceof LiveCTC)await current.resume();return;}
+    if(type==='live-stop'){
+      if(id!==latestId||!(session instanceof LiveCTC))return;
+      const current=session,started=performance.now(),emissions=await current.finish();
+      if(session!==current||id!==latestId)return;
+      const result=await liveTranscript(emissions);
+      if(session!==current||id!==latestId)return;
+      self.postMessage({type:'live-final',id,result,milliseconds:performance.now()-started,processedDuringRecording:emissions?.processedBeforeFinish||0});session=null;return;
+    }
     if(type==='analyze'){
       const started=performance.now();
-      if(!session||id!==latestId){session?.cancel();session=newSession(id);latestId=id;}
+      if(!session||session instanceof LiveCTC||id!==latestId){session?.cancel();session=newSession(id);latestId=id;}
       const current=session,emissions=await current.finish(samples);
       if(current!==session||id!==latestId)return;
       const {vocab}=await engine();let alignment;

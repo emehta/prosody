@@ -36,3 +36,8 @@ test('A pre-armed permitted microphone starts without reacquiring hardware or ke
 test('Arming and clicking simultaneously share one microphone acquisition',async()=>{
  const f=fixture();const arming=f.mic.arm(),starting=f.mic.start(4,{});assert.equal(f.counts.requests,1);f.loaded.resolve();f.permission.resolve(f.stream);await arming;await starting;assert.equal(f.counts.nodes,1);await f.mic.release();
 });
+
+test('Continuous listening is explicitly requested without changing ordinary recording limits',async()=>{
+ const f=fixture();f.loaded.resolve();f.permission.resolve(f.stream);await f.mic.start(1,{},{continuous:true});assert.deepEqual(f.sent.at(-1),{type:'start',id:1,continuous:true});
+ f.node.port.onmessage({data:{id:1,stopped:true}});await f.mic.start(2,{});assert.deepEqual(f.sent.at(-1),{type:'start',id:2});await f.mic.release();
+});

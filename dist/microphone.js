@@ -9,7 +9,7 @@ export class Microphone {
  }
  prepare(){
   if(this.prepared)return this.prepared;const ctx=this.context??=this.createContext();
-  this.prepared=ctx.audioWorklet.addModule(new URL('./capture.js?v=8',import.meta.url));
+  this.prepared=ctx.audioWorklet.addModule(new URL('./capture.js?v=10',import.meta.url));
   this.prepared.catch(()=>{if(this.context===ctx)this.prepared=null;});return this.prepared;
  }
  arm(){
@@ -38,12 +38,12 @@ export class Microphone {
    }finally{if(this.opening===opening)this.opening=null;}
   })();this.opening=opening;return opening;
  }
- async start(id,callbacks){
+ async start(id,callbacks,{continuous=false}={}){
   clearTimeout(this.idleTimer);
   if(this.capture&&!this.stream?.getTracks().some(t=>t.readyState==='live'))await this.release();
   const epoch=this.epoch;this.prepare();const resumed=this.context.resume(),armed=this.arm();
   const [ready]=await Promise.all([armed,resumed]);if(!ready||epoch!==this.epoch)return false;
-  clearTimeout(this.idleTimer);this.id=id;this.callbacks=callbacks;this.capture.port.postMessage({type:'start',id});return true;
+  clearTimeout(this.idleTimer);this.id=id;this.callbacks=callbacks;this.capture.port.postMessage({type:'start',id,...(continuous?{continuous:true}:{})});return true;
  }
  idle(){clearTimeout(this.idleTimer);this.idleTimer=setTimeout(()=>this.release(),this.idleMs);}
  stop(){this.capture?.port.postMessage({type:'stop',id:this.id});}

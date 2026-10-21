@@ -4,7 +4,7 @@ Live site: https://emehta.github.io/prosody/
 
 Source: https://github.com/emehta/prosody
 
-Read one of five sentences and see the shape of your speech. The studio contains Live, microphone, playback and upload controls. Five sentence tabs sit on the left; pitch range, speaking pace and pauses sit at the top. Sun and moon controls persist the chosen light/dark theme. How it works opens a wider card with its analysis notes always visible. Primary accent: #2C9FC7.
+Read one of five sentences and see the shape of your speech. Live sits above five visibly labeled sentence choices on the left. The studio contains microphone, playback and upload controls; pitch range, speaking pace and pauses sit at the top. Sun and moon controls persist the chosen light/dark theme. How it works opens a wider card with its analysis notes always visible. Primary accent: #2C9FC7.
 
 ## Run
 
@@ -18,13 +18,16 @@ Open http://127.0.0.1:4173. The static build is already in `dist/`. Python serve
 
 ## Recording, live listening, uploads and playback
 
-Recording and Live sessions support up to 30 seconds. The sentence is present in the initial HTML. Recording is available before the speech model finishes opening; there is no Preparing percentage. The pinned word-timing model (about 95 MB on first use) loads in a background worker. Pending word timing is represented by shimmer placeholders while the readable sentence and measured pitch remain available.
+Sample recordings support up to 30 seconds. Live listens continuously until stopped (or the page is hidden), without matching any sample sentence. The sentence is present in the initial HTML. Recording is available before the speech model finishes opening; there is no Preparing percentage. The pinned word-timing model (about 95 MB on first use) loads in a background worker. Pending word timing is represented by shimmer placeholders while the readable sentence and measured pitch remain available.
 
 The worklet is preloaded. When microphone permission is already granted, the page warms the input before a click; unsupported permission queries fall back to explicit acquisition. Arming retains no audio. Input is kept ready for up to one minute, refreshed on control focus/hover, and released on navigation, hiding, cancellation or inactivity. The stop square appears only after capture receives audio. Initial browser permission and hardware acquisition remain outside the app's control.
 
 The native-rate PCM is retained for playback and WAV export. A separate band-limited, streaming 16 kHz copy feeds analysis. Quiet edges are trimmed with 60 ms leading and 140 ms trailing cushions plus a lower-threshold search for weak consonants. Internal pauses remain. Word alignment and mismatch checking use emissions inside the audible interval and map timestamps onto the trimmed replay.
 
-Live mode analyzes overlapping 640 ms acoustic windows approximately every 80 ms, retaining prior measurements. The on-device speech model publishes provisional recognized prefixes in half-second blocks; only supported words animate, while future words remain flat. Word placement can lag pitch and is refined with the full alignment after stopping. Live input stops when hidden or at 30 seconds and remains available for playback.
+Live measures pitch, energy, pauses and prominence from overlapping 640 ms acoustic windows approximately every 80 ms. A separate on-device English model transcribes whatever is actually said in half-second blocks, retaining 2 seconds of left context and 525 ms of right context. Provisional transcripts may shrink or correct partial words. Word timing and recognition necessarily lag acoustic measurement; the newest measured contour extends past the last timed word until recognition catches up, instead of assigning that sound to the earlier word.
+
+Words fill from left to right on committed lines. New lines push the earlier lines upward through a fading mask inside the studio. Completed lines do not rebalance or recenter as more text arrives. Only the recent visible lines are rendered. Fixed PCM rings, bounded inference windows and a 30-second active measurement/emission window plus capped visible-word history keep memory bounded during long sessions. If a first model download falls more than the retained audio behind capture, recognition resumes within the retained window rather than allocating unbounded audio. Live continues past 30 seconds; after stopping, up to 30 seconds ending with the most recent speech are available for trimmed native-rate playback, actual-speech alignment and export. A frozen speech-ending window preserves replay through long silent waits. Older raw audio is discarded from the replay ring; a bounded cache preserves visible lettering through long silences until new words push it out of view. No selected-sentence mismatch check runs in Live.
+
 
 Uploaded files (up to 100 MB) open a waveform editor. Drag either handle, move the selected window, use arrow keys, or enter exact start/end times. Selections are limited to 30 seconds; longer source files are supported. Preview and confirmation use exactly the selected native samples. Cancellation preserves the previous recording. Confirmed selections transcribe the actual English speech instead of matching a sample sentence. Quiet-edge trimming then removes waiting time as it does for recordings.
 
@@ -46,9 +49,10 @@ Pitch, word timing and prominence remain estimates. There is no automatic accent
 
 - `app.js`: UI, recording, upload and live lifecycles.
 - `clip-editor.js` / `selection.js`: draggable waveform selection and exact sample cropping.
-- `live-analysis.js`: bounded acoustic windows and provisional word display.
+- `live-analysis.js` / `live-layout.js` / `live-history.js`: continuous measurements and committed upward-scrolling lines.
+- `live-streaming.js` / `live-transcript.js` / `sample-ring.js`: bounded continuous recognition, revisable actual-speech transcripts, final replay mapping and PCM history.
 - `theme.js`: early theme initialization and persisted sun/moon controls.
-- `limits.js`: shared 30-second capture/selection limit.
+- `limits.js`: 30-second sample recording, upload selection and Live replay-history length; Live listening itself is continuous.
 - `microphone.js` / `capture.js`: permitted-input preparation and native PCM capture.
 - `audio.js`: analysis conversion and quiet-edge bounds.
 - `analysis.js` / `signal-worker.js`: pitch, pauses, prominence, CTC and WAV.

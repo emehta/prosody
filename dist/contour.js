@@ -16,6 +16,9 @@ export function pitchAnchors(analysis,words,start,end){
   const anchors=[];let cursor=0;
   for(let t=voiced[0].t;t<=voiced.at(-1).t+.00001;t+=.02){
     while(cursor<voiced.length&&voiced[cursor].t<t-.02)cursor++;
+    // Skip empty stretches directly; a long Live pause must not turn into
+    // millions of 20 ms iterations when the next word finally arrives.
+    if(cursor<voiced.length&&voiced[cursor].t>t+.04)t+=Math.max(0,Math.floor((voiced[cursor].t-t-.02)/.02))*.02;
     let sum=0,weight=0;
     for(let j=cursor;j<voiced.length&&voiced[j].t<=t+.02;j++){
       const f=voiced[j],w=Math.exp(-.5*((f.t-t)/.008)**2)*Math.max(.1,f.confidence??1);

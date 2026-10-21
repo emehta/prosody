@@ -1,6 +1,6 @@
 // Prepare isolation before starting the heavy model. At most one reload per
 // session; blocked/unsupported service workers fall back to one inference thread.
-const start=()=>import('./app.js?v=9');
+const start=()=>import('./app.js?v=10');
 const key='prosody-isolation-1';
 async function boot(){
   if(self.crossOriginIsolated||!navigator.serviceWorker||!self.isSecureContext)return start();

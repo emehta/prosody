@@ -1,22 +1,22 @@
 import {wordWidth,LETTERS} from './lettering.js?v=8';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=8';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=10';
 import {quantile} from './analysis.js?v=8';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const ease=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
 const f=n=>Number(n).toFixed(2);
-export function createScene(analysis,words,text,small=false){
+export function createScene(analysis,words,text,small=false,{flow=false}={}){
  const W=small?600:1100,pad=40,inner=W-pad*2,preferredScale=small?1.12:1.36,rowH=294,minGap=25;
  const source=text.split(/\s+/),speed=quantile(words.filter(w=>!w.pending).map(w=>(w.end-w.start)/Math.max(1,wordWidth(w.word))),.5)||.002;
  const items=words.map((w,i)=>{
   const display=w.word+(source[i]?.match(/[,.?]$/)?.[0]||''),natural=wordWidth(display,preferredScale);
   const relative=((w.end-w.start)/Math.max(1,wordWidth(w.word)))/speed;
-  const stretch=w.pending?1:clamp(relative**.65,.62,1.95),height=w.pending?1:clamp(relative**.32,.76,1.45);
+  const stretch=w.liveStretch??(w.pending?1:clamp(relative**.65,.62,1.95)),height=w.liveHeight??(w.pending?1:clamp(relative**.32,.76,1.45));
   return {...w,index:i,display,natural,stretch,height,width:natural*Math.max(1,stretch),gap:i?(!w.pending&&!words[i-1].pending?clamp((w.start-words[i-1].end)*105,25,85):minGap):0,clause:source[i]?.endsWith(',')};
  });
  // Choose line breaks from ordinary lettering, independent of the delivery.
  // Reserve the widest animated pose, fitting the type uniformly and compressing
  // extra pause spacing instead of sending a short phrase onto another row.
- const rows=balanceRows(items.map(w=>({...w,width:w.natural,gap:minGap})),inner*1.1);
+ const rows=flow?[...new Set(items.map(w=>w.liveRow))].map(id=>items.filter(w=>w.liveRow===id).map(w=>({...w}))):balanceRows(items.map(w=>({...w,width:w.natural,gap:minGap})),inner*1.1);
  const fit=Math.min(1,...rows.map(row=>(inner-(row.length-1)*minGap)/row.reduce((n,w)=>n+items[w.index].width,0)));
  const scale=preferredScale*fit;
  rows.forEach((row,r)=>{
@@ -29,12 +29,12 @@ export function createScene(analysis,words,text,small=false){
   end=r<rows.length-1?(end+rows[r+1][0].start)/2:Math.min(analysis.duration,Math.max(end,analysis.speechEnd));
   row.start=start;row.end=end;row.pitch=pitchAnchors(analysis,row,start,end);row.top=r*rowH;row.base=row.top+182;
  });
- const height=pitchHeight(analysis);
+ const height=pitchHeight({...analysis,frames:analysis.rangeFrames||analysis.frames});
  function frame(time=null){
   const full=time===null,layouts=[],glyphs=[],marks=[],pauses=[];
   rows.forEach((row,r)=>{
    const poses=row.map(w=>{const progress=full?1:ease((time-w.start)/Math.max(.08,Math.min(.22,w.end-w.start)));return {...w,sx:1+(w.stretch-1)*progress,progress};});
-   const used=poses.reduce((n,w)=>n+w.natural*w.sx+w.gap,0);let x=pad+(inner-used)/2;
+   const used=poses.reduce((n,w)=>n+w.natural*w.sx+w.gap,0);let x=flow?pad:pad+(inner-used)/2;
    const anchors=[];
    for(const w of poses){
     x+=w.gap;w.x=x;w.currentWidth=w.natural*w.sx;
@@ -81,5 +81,5 @@ export function createScene(analysis,words,text,small=false){
   });
   return {layouts,glyphs,marks,pauses};
  }
- return {W,H:rows.length*rowH+25,rows,rowH,scale,frame};
+ return {W,H:rows.length*rowH+25,rows,rowH,scale,frame,pitchHeight:height};
 }

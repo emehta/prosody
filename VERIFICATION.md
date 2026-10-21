@@ -1,6 +1,6 @@
 # GitHub Pages release verification
 
-78 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
+93 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
 
 ## Pitch and sentence endings
 
@@ -45,3 +45,18 @@ Pitch, alignment and prominence are estimates. Unvoiced consonants and silence h
 A further wrapping regression test covers a recognized “every one” boundary without forcing a third desktop row. Upload inference now receives the audible selection with 600 ms of analysis-only context on either side after quiet-edge trimming, so long waits are not sent through the model. Pending upload transcription uses shimmer placeholders and measured pitch rather than displaying the selected sample as though it were the uploaded text.
 
 A real cached-model comparison reproduced an initial “ou” when inference was cropped directly to playback. Adding 600 ms of context restored “you” and retained the final “bye” in the synthetic question. This context is never added to playback or preview. A sample-level test guards the separation between model context and the selected playback bounds.
+
+
+## Free-form continuous Live correction, 21 October 2026
+
+Live has its own transcription path. No sample text is sent to its recognition session or finalization, and it never calls the sample-mismatch check. The sample recorder and actual-speech upload path remain separate. Live sits above the five visibly labeled sentence choices: A statement, A question, A contrast, A pause and Emphasis. Its central microphone control becomes a stop control while listening.
+
+The continuous worklet has no 30-second stop timer or sample cap. Half-second model emissions use two seconds of left context and 525 ms of right context; recognition may revise an incomplete word. Each inference input is at most about 3.025 seconds. PCM rings and the most recent 1,500 emission frames remain bounded through arbitrarily long sessions. A separate capped visible-word/measurement cache preserves the canvas during long silence. New words fill committed lines from the left. New lines move earlier lines upward through a fading mask, without balancing or centering the earlier rows again. Only the last four rows are rendered.
+
+The actual browser AudioWorklet was exercised using synthetic English speech unrelated to any selected sample. The first capture acknowledgment took 35.6 ms and first acoustic snapshot 82.4 ms in one local check; live measurements and actual-speech transcripts were present before stop. The session remained actively listening at 57 seconds, beyond the ordinary 30-second recording limit. Stopping finalized actual spoken words without a sentence mismatch, retained native 48 kHz replay and completed the remaining alignment in roughly half a second in an earlier run. These timings are local synthetic observations, not guarantees for other devices or first-time model downloads.
+
+Automated coverage adds three-minute continuous inference with exact frame identity through all ring seams, bounded buffers and input windows, final partial-frame flushing, cancellation during inference, cold-model catch-up, explicit continuous microphone mode, arbitrary and revised transcripts, final replay time mapping, scrolling line commitment, a long silent pause followed by more speech, and the direct acoustic tail while words are pending. The tail's energy clips reuse its blue path. The unchanged recording, upload, theme, native playback, 30-second selector, contour and ending-nuance regressions remain covered.
+
+The word model still makes recognition errors, including on synthetic speech; there is no measured human-accent word error rate. Acoustic pitch and prominence remain estimates. The newest pitch/energy contour is drawn independently of recognition latency and extends beyond the last timed word rather than assigning the pending sound to it. Live retains a replay window of up to 30 seconds ending with the most recent speech; a frozen native-rate window survives a long silent wait before stopping; continuous listening and the upward-moving canvas do not have that limit.
+
+A long-pause browser regression preserved the recognized phrase and a trimmed native-rate replay after more than 30 seconds of silence. Complete stored words are protected where a rolling transcript starts partway through an earlier word. Stop reuses the already measured contour and words immediately while final recognition and acoustic workers flush, rather than clearing the canvas to shimmer placeholders.

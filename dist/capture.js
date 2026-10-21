@@ -3,7 +3,7 @@ class Capture extends AudioWorkletProcessor {
   super();this.recording=false;this.chunk=new Float32Array(2048);this.offset=0;this.total=0;
   this.maxSamples=options?.processorOptions?.maxSamples??480000;
   this.port.onmessage=({data})=>{
-   if(data.type==='start'){this.id=data.id;this.offset=0;this.total=0;this.recording=true;this.started=false;}
+   if(data.type==='start'){this.id=data.id;this.offset=0;this.total=0;this.recording=true;this.started=false;this.continuous=!!data.continuous;}
    if(data.type==='stop'&&data.id===this.id)this.stop();
   };
  }
@@ -18,7 +18,7 @@ class Capture extends AudioWorkletProcessor {
    for(let i=0;i<channels[0].length;i++){
     let value=0;for(const channel of channels)value+=channel[i]/channels.length;this.chunk[this.offset++]=value;this.total++;
     if(this.offset===this.chunk.length){this.port.postMessage({id:this.id,samples:this.chunk},[this.chunk.buffer]);this.chunk=new Float32Array(2048);this.offset=0;}
-    if(this.total>=this.maxSamples){this.stop();break;}
+    if(this.total>=(this.continuous?Infinity:this.maxSamples)){this.stop();break;}
    }
   }
   for(const output of outputs)for(const channel of output)channel.fill(0);return true;

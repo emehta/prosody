@@ -1,6 +1,6 @@
 import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=8';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=8';
-import {createScene} from './scene.js?v=8';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=10';
+import {createScene} from './scene.js?v=10';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 export function promptSVG(text,small=false){
  const W=small?600:1100,pad=32,scale=small?1.12:1.36;
@@ -17,9 +17,9 @@ export function pitchSVG(analysis,small=false){
  const points=pitch.map(p=>({x:35+(p.t-analysis.speechStart)/Math.max(.01,analysis.speechEnd-analysis.speechStart)*(W-70),y:45-height(p.hz)}));
  return `<svg class="unmatched-contour" viewBox="0 0 ${W} 90" role="img" aria-label="Pitch of this take, without word alignment"><path class="pitch-line" d="${curve(points).d}"/></svg>`;
 }
-export function voiceSVG(analysis,words,text,small=false,{time=null}={}){
+export function voiceSVG(analysis,words,text,small=false,{time=null,flow=false}={}){
  if(!words.length)return {svg:unalignedSVG(analysis,text,small),rows:[],scene:null};
- const scene=createScene(analysis,words,text,small),frame=scene.frame(time),{W,H,rowH}=scene;
+ const scene=createScene(analysis,words,text,small,{flow}),frame=scene.frame(time),{W,H,rowH}=scene;
  const parts=[`<svg xmlns="http://www.w3.org/2000/svg" class="voice-svg" id="voice-svg" viewBox="0 -12 ${W} ${H+12}" role="group" aria-label="Pitch contour and spoken words"><title>${esc(text)}</title><desc>Letters widen and grow taller with relative duration. Letter position and tilt follow measured pitch. Playback reveals these movements and the shared contour as each word is spoken.</desc>`];
  for(const layout of frame.layouts){
   const r=layout.r,top=r*rowH,id=`contour-${r}`;
@@ -38,9 +38,31 @@ export function voiceSVG(analysis,words,text,small=false,{time=null}={}){
  return {svg:parts.join('')+'</svg>',rows:scene.rows,scene};
 }
 
+// The newest acoustic contour is visible before recognition catches up. It
+// extends beyond the last timed word; no earlier word is assigned that sound.
+export function liveTailSVG(analysis,scene,base=0,time=null){
+ if(!scene)return '';
+ const row=scene.rows.at(-1),layout=scene.frame(time).layouts.at(-1),start=base+row.end,end=Math.min(analysis.duration,start+2),x0=layout.xTime(row.end),room=scene.W-40-x0;
+ if(end<=start||room<8)return '';
+ const height=scene.pitchHeight,hz=row.pitch.at(-1)?.hz||analysis.medianHz||160,anchors=[{t:start,hz},...pitchAnchors(analysis,[],start,end).filter(p=>p.t>start)];
+ if(anchors.length===1)anchors.push({t:end,hz});
+ const x=t=>x0+(t-start)*Math.min(170,room/Math.max(.01,end-start));
+ const d=curve(anchors.map(p=>({x:x(p.t),y:row.base+15-height(p.hz)}))).d,parts=[`<defs><path id="live-tail-path" d="${d}"/></defs><use href="#live-tail-path" class="pitch-line"/>`];
+ const bins=analysis.energy.filter(f=>f.end>start&&f.start<end),ceiling=Math.max(0,...bins.map(f=>f.rms)),gate=Math.max(analysis.threshold,ceiling*.62);
+ const quiet=[];let silence=null;if(!bins.length&&analysis.duration-start>=.18)quiet.push({start,end});
+ bins.forEach((f,i)=>{
+  const left=x(Math.max(start,f.start)),right=x(Math.min(end,f.end));
+  if(f.rms>=gate&&ceiling){const id=`tail-energy-${i}`;parts.push(`<defs><clipPath id="${id}"><rect x="${left}" y="${row.top-12}" width="${Math.max(0,right-left)}" height="${scene.rowH+24}"/></clipPath></defs><use href="#live-tail-path" class="word-mark" stroke-width="3" clip-path="url(#${id})"/>`);}
+  if(f.rms<analysis.threshold){silence??=Math.max(start,f.start);}else if(silence!==null){if(f.start-silence>=.18)quiet.push({start:silence,end:f.start});silence=null;}
+ });
+ if(silence!==null&&end-silence>=.18)quiet.push({start:silence,end});
+ for(const [i,p] of quiet.entries()){const id=`tail-pause-${i}`;parts.push(`<defs><clipPath id="${id}"><rect x="${x(p.start)}" y="${row.top-12}" width="${x(p.end)-x(p.start)}" height="${scene.rowH+24}"/></clipPath></defs><use href="#live-tail-path" class="pause-erase" clip-path="url(#${id})"/><use href="#live-tail-path" class="pause-bridge" clip-path="url(#${id})"/>`);}
+ return parts.join('');
+}
+
 // Update existing SVG nodes. Playback never replaces focused controls or rebuilds
 // hundreds of letter paths on each animation frame.
-export function bindMotion(container,scene){
+export function bindMotion(container,scene,{live=false}={}){
  if(!scene)return null;
  const paths=[...container.querySelectorAll('path[id^="contour-"]')],reveals=[...container.querySelectorAll('[data-reveal]')];
  const glyphs=new Map([...container.querySelectorAll('[data-letter]')].map(el=>[el.dataset.letter,el]));
@@ -50,9 +72,9 @@ export function bindMotion(container,scene){
  const hits=new Map([...container.querySelectorAll('[data-hit]')].map(el=>[Number(el.dataset.hit),el]));
  return time=>{
   const frame=scene.frame(time);
-  frame.layouts.forEach((l,r)=>{paths[r].setAttribute('d',l.d);reveals[r].setAttribute('width',l.reveal);for(const w of l.words){hits.get(w.index).setAttribute('x',w.x-5);hits.get(w.index).setAttribute('width',w.currentWidth+10);}});
+  frame.layouts.forEach((l,r)=>{paths[r].setAttribute('d',l.d);reveals[r].setAttribute('width',live?scene.W:l.reveal);for(const w of l.words){hits.get(w.index).setAttribute('x',w.x-5);hits.get(w.index).setAttribute('width',w.currentWidth+10);}});
   for(const glyph of frame.glyphs)glyphs.get(glyph.key).setAttribute('transform',glyph.transform);
-  for(const mark of frame.marks){const el=clips.get(mark.key);el.setAttribute('x',mark.x);el.setAttribute('width',mark.width);marks.get(mark.key).setAttribute('opacity',mark.opacity);}
+  for(const mark of frame.marks){const el=clips.get(mark.key);el.setAttribute('x',mark.x);el.setAttribute('width',mark.width);marks.get(mark.key).setAttribute('opacity',live?1:mark.opacity);}
   for(const p of frame.pauses){const el=pauses.get(p.key);el.setAttribute('x',p.x);el.setAttribute('width',p.width);}
  };
 }
