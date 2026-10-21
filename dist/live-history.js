@@ -1,4 +1,4 @@
-import {describeAcoustics} from './analysis.js?v=11';
+import {describeAcoustics} from './analysis.js?v=12';
 
 // Preserve the visible spoken history through long silences. Wall-clock time
 // alone must not erase a line; later words push it upward instead. Retention is

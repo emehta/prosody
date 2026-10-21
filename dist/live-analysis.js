@@ -1,5 +1,5 @@
-import {analyze,describeAcoustics,RATE,HOP} from './analysis.js?v=11';
-import {dictationActivity} from './dictation.js?v=11';
+import {analyze,describeAcoustics,RATE,HOP} from './analysis.js?v=12';
+import {dictationActivity} from './dictation.js?v=12';
 import {SampleRing} from './sample-ring.js';
 
 // Revisit only a 640 ms overlap, retain the most recent 30 s of measurements.

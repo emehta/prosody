@@ -1,6 +1,6 @@
 # GitHub Pages release verification
 
-107 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
+109 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
 
 ## Pitch and sentence endings
 
@@ -78,6 +78,13 @@ Recognition checks:
 
 Quiet activity detection accepts changing aperiodic speech without requiring F0. Analysis uses a lower absolute floor, and quiet Live replay uses lower edge-trimming thresholds. Fully unvoiced rows have a neutral dashed timing baseline, rather than invented pitch; coral energy marks still follow that same path.
 
-107 automated tests pass. Added coverage includes quiet aperiodic input, zero/DC rejection, analysis-only gain, numerals and uncertain Whisper word timestamps, blank partial results, coalesced inference, cancellation, three-minute bounded dictation, timestamp drift at rolling joins, quiet replay trimming, neutral unvoiced geometry, real viewport scroll targets and playback at the final row. Existing capture, recording/upload, 30-second selection, native WAV quality, pitch-ending and rhythm-path regressions pass.
+109 automated tests pass. Added coverage includes quiet aperiodic input, zero/DC rejection, analysis-only gain, numerals and uncertain Whisper word timestamps, blank partial results, coalesced inference, cancellation, three-minute bounded dictation, timestamp drift at rolling joins, quiet replay trimming, neutral unvoiced geometry, real viewport scroll targets and playback at the final row. Existing capture, recording/upload, 30-second selection, native WAV quality, pitch-ending and rhythm-path regressions pass.
 
 Recognition and word timing remain estimates. Whispers, background noise, names, accents and very slow hardware can still cause errors; this release does not establish an accuracy score for this user's microphone or accent. Whisper word boundaries are attention estimates, not phoneme-level forced alignment.
+
+
+A repeat-run regression exposed worker task starvation: WASM decoding could keep queued microphone messages from reaching the ring before the next inference. Live now yields its worker task queue after every decode so accumulated packets coalesce before the next window is chosen. A real CPU-bound Node worker regression sends microphone packets during a blocked decode and requires at most three inferences, ending with the complete newest 3.6 seconds, rather than serially decoding every old packet. Versioned module URLs invalidate the earlier worker graph.
+
+Live's recognition window also ends 220 ms after the last detected activity, rather than passing long trailing silence to a generative recognizer. A regression requires a one-second speech burst followed by eight seconds of silence to send at most 1.22 seconds to recognition. This prevents long quiet tails from becoming implausibly long timed words. The worker yields with MessageChannel rather than timers, avoiding intensive background timer throttling. Live's model now warms on page load; sample/upload recognition is loaded when selected.
+
+The fresh final browser run with the warmed model and MessageChannel yield captured all 117 words before Stop, including the ending “with the shape of my voice underneath”, without a word created from the following silence. The desktop card stayed exactly 1044 x 446 px. Capture acknowledged in 81.1 ms, the first acoustic snapshot arrived in 82.4 ms, first words arrived in 4.04 seconds, and a later decode took 1.84 seconds. Word latency remains device- and load-dependent.

@@ -1,6 +1,6 @@
-import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=11';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=11';
-import {createScene} from './scene.js?v=11';
+import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=12';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=12';
+import {createScene} from './scene.js?v=12';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 export function promptSVG(text,small=false){
  const W=small?600:1100,pad=32,scale=small?1.12:1.36;

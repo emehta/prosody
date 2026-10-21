@@ -1,5 +1,5 @@
-import {wordWidth} from './lettering.js?v=11';
-import {quantile} from './analysis.js?v=11';
+import {wordWidth} from './lettering.js?v=12';
+import {quantile} from './analysis.js?v=12';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 // Line breaks are committed as speech advances. New words fill from the left;
 // adding another line never rebalances, recenters or resizes earlier lines.

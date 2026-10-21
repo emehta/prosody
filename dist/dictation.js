@@ -2,6 +2,7 @@ import {SampleRing} from './sample-ring.js';
 export const DICTATION_MODEL='Xenova/whisper-base.en';
 export const DICTATION_REVISION='95bf40a508535962c6483ead40270b2e32267508';
 const RATE=16000;
+function yieldPackets(){return new Promise(resolve=>{const channel=new MessageChannel();channel.port1.onmessage=()=>{channel.port1.close();channel.port2.close();resolve();};channel.port2.postMessage(0);});}
 const percentile=(values,p)=>{const s=values.slice().sort((a,b)=>a-b);return s[Math.min(s.length-1,Math.floor(s.length*p))]||0;};
 
 // Speech does not require voiced pitch: whispers can be entirely aperiodic.
@@ -42,17 +43,24 @@ export class LiveDictation{
  async drain(){
   while(!this.cancelled){
    const end=this.audio.end,newLength=end-this.lastSubmitted;if(!newLength||(!this.final&&newLength<this.interval))return;
-   const fresh=this.audio.slice(Math.max(this.audio.start,this.lastSubmitted-RATE*.3),end),activity=dictationActivity(fresh);
+   const freshStart=Math.max(this.audio.start,this.lastSubmitted-RATE*.3),fresh=this.audio.slice(freshStart,end),activity=dictationActivity(fresh);
    this.lastSubmitted=end;
    if(!activity.speech){if(this.final)return;continue;}
-   let start=Math.max(this.audio.start,end-this.seconds*RATE);
+   const decodeEnd=Math.min(end,freshStart+activity.end+Math.round(RATE*.22));
+   let start=Math.max(this.audio.start,decodeEnd-this.seconds*RATE);
+   if(start>=decodeEnd)continue;
    // Start at a previously timed word boundary to avoid decoding the suffix of
    // a word as a new word when the rolling window advances.
    const boundary=this.lastResult.words.find(w=>w.start>=start/RATE+.15);
    if(start>0&&boundary&&boundary.start<start/RATE+2)start=Math.round(Math.max(start/RATE,boundary.start-.15)*RATE);
-   const samples=this.audio.slice(start,end),started=performance.now(),output=await this.infer(recognitionAudio(samples));
+   const samples=this.audio.slice(start,decodeEnd),started=performance.now(),output=await this.infer(recognitionAudio(samples));
    if(this.cancelled)return;
    const result=whisperWords(output,start/RATE,samples.length/RATE);result.inferenceMs=performance.now()-started;if(result.words.length){this.lastResult=result;await this.onResult?.(result);}
+   // WASM generation can monopolize this worker's task queue. Let queued mic
+   // messages append before choosing another window; otherwise a nominally
+   // coalesced loop still decodes old packets one after another in real time.
+   // MessageChannel also avoids the long timer clamp on background tabs.
+   await yieldPackets();
   }
  }
  async finish(){this.final=true;if(this.running)await this.running;if(this.failure)throw this.failure;await this.pump();if(this.cancelled)throw new Error('Cancelled');return this.lastResult;}

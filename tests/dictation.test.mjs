@@ -5,6 +5,7 @@ import {LiveHistory} from '../dist/live-history.js';
 import {analyze} from '../dist/analysis.js';
 import {voiceSVG} from '../dist/view.js';
 import {leadingTrim} from '../dist/audio.js';
+import {Worker} from 'node:worker_threads';
 function breath(seconds=1,gain=.02){
  let seed=12345;return Float32Array.from({length:Math.round(seconds*16000)},(_,i)=>{seed=(1664525*seed+1013904223)>>>0;return (seed/2**32-.5)*gain*(.05+.95*Math.sin(Math.PI*i/1600)**2);});
 }
@@ -31,6 +32,11 @@ test('Empty partial recognition preserves the latest valid words',async()=>{
  live.append(breath(.6));await live.pump();live.append(breath(.6));await live.pump();const final=await live.finish();
  assert.equal(calls,2);assert.equal(seen.length,1);assert.equal(final.text,'hello world');
 });
+test('A quiet tail is excluded from recognition instead of becoming a long hallucinated word',async()=>{
+ let length=0;const live=new LiveDictation(async samples=>{length=samples.length;return output();});
+ const input=new Float32Array(9*16000);input.set(breath(1));live.append(input);await live.pump();
+ assert.ok(length<=1.22*16000);assert.ok(live.lastResult.processedUntil<=1.22);
+});
 test('Live coalesces samples during inference and flushes the final short tail',async()=>{
  let release,calls=0;const lengths=[],live=new LiveDictation(async samples=>{lengths.push(samples.length);if(++calls===1)await new Promise(r=>release=r);return output();},{interval:.5});
  live.append(breath(.6));for(let i=0;i<10;i++)live.append(breath(.1));assert.equal(calls,1);
@@ -46,6 +52,25 @@ test('Long Live dictation keeps bounded audio windows and never decodes silence'
  live.append(new Float32Array(32000));await live.pump();assert.equal(calls,0);
  for(let i=0;i<120;i++){live.append(breath(1.5));await live.pump();}
  await live.finish();assert.ok(calls>100);assert.ok(maxInput<=14*16000);assert.equal(live.audio.data.length,18*16000);assert.ok(live.lastResult.processedUntil>180);
+});
+test('A CPU-bound worker accepts queued microphone packets before decoding again',async()=>{
+ const source=`import {parentPort} from 'node:worker_threads';
+ import {LiveDictation} from ${JSON.stringify(new URL('../dist/dictation.js',import.meta.url).href)};
+ const lengths=[],live=new LiveDictation(async samples=>{
+  lengths.push(samples.length);parentPort.postMessage({type:'decoding'});
+  const until=performance.now()+80;while(performance.now()<until){}
+  return {chunks:[{text:'hello',timestamp:[0,.2]}]};
+ },{interval:.5});
+ parentPort.on('message',async data=>{if(data.type==='chunk')live.append(data.samples);else if(data.type==='finish'){await live.finish();parentPort.postMessage({type:'done',lengths});}});`;
+ const worker=new Worker(new URL('data:text/javascript,'+encodeURIComponent(source)),{type:'module'});
+ try{
+  const completed=new Promise((resolve,reject)=>{let sent=false;worker.on('error',reject);worker.on('message',data=>{
+   if(data.type==='decoding'&&!sent){sent=true;for(let i=0;i<15;i++)worker.postMessage({type:'chunk',samples:breath(.2)});worker.postMessage({type:'finish'});}
+   if(data.type==='done')resolve(data.lengths);
+  });});
+  worker.postMessage({type:'chunk',samples:breath(.6)});
+  const lengths=await completed;assert.ok(lengths.length<=3,`queued packets should coalesce, got ${lengths}`);assert.equal(lengths[0],9600);assert.equal(lengths.at(-1),57600);
+ }finally{await worker.terminate();}
 });
 test('Rolling joins use word agreement despite shifted attention timestamps',()=>{
  const h=new LiveHistory(),words=['can','you','hear','my','voice'].map((word,i)=>({word,start:i*.2,end:i*.2+.18}));

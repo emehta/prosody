@@ -1,16 +1,16 @@
-import {RATE,summarizeWords,encodeWav} from './analysis.js?v=11';
-import {AnalysisResampler,analysisSamples,joinSamples,leadingTrim,uploadAnalysisWindow} from './audio.js?v=11';
-import {promptSVG,voiceSVG,bindMotion,pitchSVG,liveTailSVG} from './view.js?v=11';
-import {Microphone} from './microphone.js?v=11';
-import {MAX_SECONDS,MAX_FILE_BYTES} from './limits.js?v=11';
-import {ClipEditor} from './clip-editor.js?v=11';
-import {liveView,recentLiveWords,liveReplayAnalysis} from './live-analysis.js?v=11';
+import {RATE,summarizeWords,encodeWav} from './analysis.js?v=12';
+import {AnalysisResampler,analysisSamples,joinSamples,leadingTrim,uploadAnalysisWindow} from './audio.js?v=12';
+import {promptSVG,voiceSVG,bindMotion,pitchSVG,liveTailSVG} from './view.js?v=12';
+import {Microphone} from './microphone.js?v=12';
+import {MAX_SECONDS,MAX_FILE_BYTES} from './limits.js?v=12';
+import {ClipEditor} from './clip-editor.js?v=12';
+import {liveView,recentLiveWords,liveReplayAnalysis} from './live-analysis.js?v=12';
 import {SampleRing} from './sample-ring.js';
-import {LiveViewport} from './live-viewport.js?v=11';
-import {LiveLayout} from './live-layout.js?v=11';
-import {LiveHistory} from './live-history.js?v=11';
-import {finalizeLiveTranscript} from './live-transcript.js?v=11';
-import {curve,pitchAnchors,pitchHeight} from './contour.js?v=11';
+import {LiveViewport} from './live-viewport.js?v=12';
+import {LiveLayout} from './live-layout.js?v=12';
+import {LiveHistory} from './live-history.js?v=12';
+import {finalizeLiveTranscript} from './live-transcript.js?v=12';
+import {curve,pitchAnchors,pitchHeight} from './contour.js?v=12';
 const microphone=new Microphone();
 let liveHistory=new LiveHistory(),liveLayout=new LiveLayout(),liveRow=-1,liveScene=null,liveSceneBase=0,liveRecognitionFailed=false,liveSaved=null;
 const sentences=['They tried to keep a secret, but somehow everyone found out.','You really thought I would leave without saying goodbye?','I ordered the coffee, but she asked for a cup of tea.','When the rain finally stopped, we walked home together.','I never said you had to finish it today.'];
@@ -52,7 +52,7 @@ function controls(){
 }
 function initializeSpeech(live=false){
  speech?.terminate();speechKind=live;modelReady=false;modelFailed=false;
- speech=new Worker(new URL(live?'./dictation-worker.js?v=11':'./worker.js?v=11',import.meta.url),{type:'module'});
+ speech=new Worker(new URL(live?'./dictation-worker.js?v=12':'./worker.js?v=12',import.meta.url),{type:'module'});
  const activeSpeech=speech;
  speech.onmessage=({data})=>{
   if(speech!==activeSpeech)return;
@@ -81,7 +81,7 @@ function initializeSpeech(live=false){
  };
  speech.onerror=()=>{modelFailed=true;modelReady=false;pending=false;$('retry-model').hidden=false;message('Word timing is unavailable. You can still record, replay audio and see its pitch.');controls();};
 }
-function initializeWorkers(){initializeSpeech();signal=new Worker(new URL('./signal-worker.js?v=11',import.meta.url),{type:'module'});
+function initializeWorkers(){initializeSpeech(true);signal=new Worker(new URL('./signal-worker.js?v=12',import.meta.url),{type:'module'});
  signal.onmessage=({data})=>{
   if(data.id!==generation)return;
   if(data.type==='live-acoustic'){if(mode==='live'){if(!liveResult)$('visualization').dataset.liveFirstMs=(performance.now()-recordStart).toFixed(1);$('visualization').dataset.liveUpdates=String(Number($('visualization').dataset.liveUpdates||0)+1);liveResult=data.result;liveHistory.measure(liveResult);saveLivePause();result=liveResult;$('visualization').dataset.liveSignalMs=data.milliseconds.toFixed(1);paintLive();}return;}

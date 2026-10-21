@@ -1,5 +1,5 @@
-import {transcribeWindowCTC} from './analysis.js?v=11';
-import {recentLiveWords} from './live-analysis.js?v=11';
+import {transcribeWindowCTC} from './analysis.js?v=12';
+import {recentLiveWords} from './live-analysis.js?v=12';
 
 export function transcribeLiveCTC(emissions,vocab){
  if(!emissions)return {words:[],text:'',decoded:'',transcribed:true,match:1};
