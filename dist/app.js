@@ -1,21 +1,24 @@
-import {RATE,summarizeWords,encodeWav} from './analysis.js?v=13';
-import {AnalysisResampler,analysisSamples,joinSamples,leadingTrim,uploadAnalysisWindow} from './audio.js?v=13';
-import {promptSVG,voiceSVG,bindMotion,pitchSVG,liveTailSVG} from './view.js?v=13';
-import {Microphone} from './microphone.js?v=13';
-import {MAX_SECONDS,MAX_FILE_BYTES} from './limits.js?v=13';
-import {ClipEditor} from './clip-editor.js?v=13';
-import {liveView,recentLiveWords,liveReplayAnalysis} from './live-analysis.js?v=13';
+import {RATE,summarizeWords,encodeWav} from './analysis.js?v=14';
+import {AnalysisResampler,analysisSamples,joinSamples,leadingTrim,uploadAnalysisWindow} from './audio.js?v=14';
+import {promptSVG,voiceSVG,bindMotion,pitchSVG,liveTailSVG} from './view.js?v=14';
+import {Microphone} from './microphone.js?v=14';
+import {MAX_SECONDS,MAX_FILE_BYTES} from './limits.js?v=14';
+import {ClipEditor} from './clip-editor.js?v=14';
+import {liveView,recentLiveWords,liveReplayAnalysis} from './live-analysis.js?v=14';
 import {SampleRing} from './sample-ring.js';
-import {LiveViewport} from './live-viewport.js?v=13';
-import {LiveLayout,LIVE_ROW_HEIGHT} from './live-layout.js?v=13';
-import {LiveHistory} from './live-history.js?v=13';
-import {finalizeLiveTranscript} from './live-transcript.js?v=13';
-import {curve,pitchAnchors,pitchHeight} from './contour.js?v=13';
+import {LiveViewport} from './live-viewport.js?v=14';
+import {LiveLayout,LIVE_ROW_HEIGHT} from './live-layout.js?v=14';
+import {LiveHistory} from './live-history.js?v=14';
+import {finalizeLiveTranscript} from './live-transcript.js?v=14';
+import {curve,pitchAnchors,pitchHeight} from './contour.js?v=14';
+import {SamplePlayback} from './playback.js?v=14';
+import {tightenWords} from './word-timing.js?v=14';
 const microphone=new Microphone();
 let livePlan=null,livePaintKey=null;
 let liveHistory=new LiveHistory(),liveLayout=new LiveLayout(),liveRow=-1,liveScene=null,liveSceneBase=0,liveRecognitionFailed=false,liveSaved=null;
 const sentences=['They tried to keep a secret, but somehow everyone found out.','You really thought I would leave without saying goodbye?','I ordered the coffee, but she asked for a cup of tea.','When the rain finally stopped, we walked home together.','I never said you had to finish it today.'];
-const $=id=>document.getElementById(id),audio=$('audio'),reduced=matchMedia('(prefers-reduced-motion: reduce)');
+const $=id=>document.getElementById(id),audio=new SamplePlayback($('audio')),reduced=matchMedia('(prefers-reduced-motion: reduce)');
+let timingWorker=null,timingAlignment=null,timingRequested=false;
 let displayText='',transcribing=false,liveMode=false,liveSelected=false,liveTake=false,liveResult=null,liveAligned=[],liveMotion=null,liveTransition=null,liveEnd=0,liveTakeStart=0,nativeRing=null,analysisRing=null;
 let selected=0,mode='idle',generation=0,modelReady=false,modelFailed=false,speech,signal,speechKind=false;
 let result=null,acousticsReady=false,words=[],pending=false,pendingAlignment=null,isExample=false,importing=false;
@@ -53,7 +56,7 @@ function controls(){
 }
 function initializeSpeech(live=false){
  speech?.terminate();speechKind=live;modelReady=false;modelFailed=false;
- speech=new Worker(new URL(live?'./dictation-worker.js?v=13':'./worker.js?v=13',import.meta.url),{type:'module'});
+ speech=new Worker(new URL(live?'./dictation-worker.js?v=14':'./worker.js?v=14',import.meta.url),{type:'module'});
  const activeSpeech=speech;
  speech.onmessage=({data})=>{
   if(speech!==activeSpeech)return;
@@ -82,7 +85,7 @@ function initializeSpeech(live=false){
  };
  speech.onerror=()=>{modelFailed=true;modelReady=false;pending=false;$('retry-model').hidden=false;message('Word timing is unavailable. You can still record, replay audio and see its pitch.');controls();};
 }
-function initializeWorkers(){initializeSpeech(true);signal=new Worker(new URL('./signal-worker.js?v=13',import.meta.url),{type:'module'});
+function initializeWorkers(){initializeSpeech(true);signal=new Worker(new URL('./signal-worker.js?v=14',import.meta.url),{type:'module'});
  signal.onmessage=({data})=>{
   if(data.id!==generation)return;
   if(data.type==='live-acoustic'){if(mode==='live'){if(!liveResult)$('visualization').dataset.liveFirstMs=(performance.now()-recordStart).toFixed(1);$('visualization').dataset.liveUpdates=String(Number($('visualization').dataset.liveUpdates||0)+1);liveResult=data.result;liveHistory.measure(liveResult);saveLivePause();result=liveResult;$('visualization').dataset.liveSignalMs=data.milliseconds.toFixed(1);paintLive();}return;}
@@ -96,29 +99,51 @@ function initializeWorkers(){initializeSpeech(true);signal=new Worker(new URL('.
  };
 }
 function ensureSpeech(live){if(speechKind!==live)initializeSpeech(live);}
+function warmTiming(){
+ if(timingWorker)return;
+ timingWorker=new Worker(new URL('./worker.js?v=14',import.meta.url),{type:'module'});
+ timingWorker.onmessage=({data})=>{
+  if(data.id!==generation||!timingAlignment)return;
+  if(data.type==='refined'){pendingAlignment={...timingAlignment,words:data.words,refined:true};timingAlignment=null;$('visualization').dataset.refinementMs=data.milliseconds.toFixed(1);$('visualization').dataset.refinedWords=String(data.words.filter(w=>w.timingSource==='ctc-refined').length);applyAlignment();}
+  else if(data.type==='error'){pendingAlignment={...timingAlignment,refined:true};timingAlignment=null;applyAlignment();message('Replay timing remains approximate because acoustic alignment was unavailable.');}
+ };
+ timingWorker.onerror=()=>{timingWorker?.terminate();timingWorker=null;if(timingAlignment){pendingAlignment={...timingAlignment,refined:true};timingAlignment=null;applyAlignment();message('Replay timing remains approximate because acoustic alignment was unavailable.');}};
+ timingWorker.postMessage({type:'load'});
+}
 
 function loadEngine(){if(modelReady)return;$('retry-model').hidden=true;speech.postMessage({type:'load'});}
 function applyAlignment(){
- const alignment=pendingAlignment;pendingAlignment=null;pending=false;result.alignment=alignment;
+ const alignment=pendingAlignment;pendingAlignment=null;
+ if(liveTake&&alignment.words.length&&!alignment.refined&&!timingRequested){
+  timingRequested=true;timingAlignment=alignment;warmTiming();status('Refining replay timing');
+  timingWorker.postMessage({type:'refine',id:generation,samples:currentAnalysis,words:alignment.words,analysis:result});render();controls();return;
+ }
+ pending=false;result.alignment=alignment;
  if(alignment.transcribed&&alignment.text){displayText=alignment.text;$('canvas-panel').removeAttribute('aria-labelledby');$('canvas-panel').setAttribute('aria-label',liveTake?'Live speech':'Uploaded audio');}
  if(alignment.transcribed&&!alignment.words.length){words=[];message(liveTake?'No clear speech was recognized. Try speaking a little closer to the microphone.':'No clear speech was recognized in this selection. Try another portion.');}
  else if(alignment.match<.68){
   words=[];message(result.duration<2.2?'That was a short take. Read the full sentence, then stop.':'The recording doesn’t match the selected sentence. Try reading it again.');
  }else{
-  words=summarizeWords(alignment.words,result);result.words=words;
+  const timed=alignment.words.every(w=>Number.isFinite(w.playStart))?alignment.words:tightenWords(alignment.words,result);words=summarizeWords(timed,result);result.words=words;
+  if(liveTake){
+   liveHistory.refine(timed,result,liveTakeStart);
+   if(livePlan){const dimensions=new LiveLayout().update(liveHistory.words,liveHistory.analysis,livePlan.small).words;livePlan={...livePlan,version:liveHistory.version,words:dimensions.map((w,i)=>({...w,liveRow:livePlan.words[i].liveRow}))};}
+   livePaintKey=null;
+  }
   if(result.clipping>.004)message('The recording is clipped. Try moving a little farther from the microphone.');
   else if(alignment.match<.86)message('Some words were unclear. Dotted coral marks indicate uncertain timing.');else message();
  }
  status('Ready');$('visualization').dataset.completeMs=(performance.now()-acceptedAt).toFixed(1);render();controls();
 }
 function clear(){
+ timingWorker?.postMessage({type:'cancel',id:generation+1});timingAlignment=null;timingRequested=false;
  livePlan=null;livePaintKey=null;liveViewport.reset();
  generation++;speech?.postMessage({type:'cancel',id:generation});pending=false;pendingAlignment=null;
  audio.pause();audio.removeAttribute('src');audio.load();if(objectUrl){URL.revokeObjectURL(objectUrl);objectUrl=null;}
  result=null;acousticsReady=false;words=[];currentAnalysis=null;isExample=false;displayText=liveSelected?'Speak freely.':sentences[selected];transcribing=false;liveMode=false;liveTake=false;liveResult=null;liveAligned=[];liveMotion=null;liveTransition=null;liveEnd=0;liveRow=-1;liveSaved=null;liveRecognitionFailed=false;liveScene=null;liveLayout=new LiveLayout();liveHistory=new LiveHistory();nativeRing=null;analysisRing=null;mode='idle';clipEnd=null;poseTime=null;motion=null;
  if(liveSelected){$('canvas-panel').removeAttribute('aria-labelledby');$('canvas-panel').setAttribute('aria-label','Live speech');}else{$('canvas-panel').setAttribute('aria-labelledby',`tab-${selected}`);$('canvas-panel').removeAttribute('aria-label');}
  renderInsights();$('reset').hidden=true;$('sample-label').hidden=true;$('seek').value=0;
- for(const key of ['liveWords','liveUpdates','liveFirstMs','liveFirstWordsMs','liveDecodeMs','liveTranscript','liveProcessedUntil','liveWindowStart','livePaintUntil'])delete $('visualization').dataset[key];
+ for(const key of ['liveWords','liveUpdates','liveFirstMs','liveFirstWordsMs','liveDecodeMs','liveTranscript','liveProcessedUntil','liveWindowStart','livePaintUntil','refinedWords','refinementMs'])delete $('visualization').dataset[key];
  $('play').classList.remove('playing');$('play').setAttribute('aria-label','Play recording');message();status('Ready');render();controls();
 }
 function select(index){
@@ -144,6 +169,7 @@ function audioContext(){return new (window.AudioContext||window.webkitAudioConte
 async function startRecording(live=false){
  if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){message('Microphone access requires HTTPS or localhost. You can also use the upload icon.',true);return;}
  liveSelected=live;clear();ensureSpeech(live);liveMode=live;liveTake=live;transcribing=live;mode='permission';status('Starting microphone');controls();const id=generation,clicked=performance.now();
+ if(live)warmTiming();
  nativeChunks=[];analysisChunks=[];converter=null;finishing=false;speech.postMessage({type:'start',id,...(!live?{text:sentences[selected]}:{}),live});if(live)signal.postMessage({type:'live-start',id});
  try{
   await microphone.start(id,{
@@ -202,9 +228,9 @@ function acceptAudio(native,rate,analyzed=analysisSamples(native,rate),{live=fal
  // Uploads have no previously streamed emissions to reuse. Infer only the
  // audible selection, avoiding expensive model work on already-trimmed waits.
  if(transcribing&&!live){const window=uploadAnalysisWindow(analyzed,trim);currentAnalysis=window.samples;offset=window.offset;}
- if(live)liveTakeStart+=trim.seconds;
+ if(live){liveTakeStart+=nativeStart/rate;currentAnalysis=signalSamples;}
  result=null;acousticsReady=false;words=[];pendingAlignment=null;pending=true;mode='processing';status('Analyzing recording');poseTime=null;message();
- if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=URL.createObjectURL(new Blob([encodeWav(playback,rate)],{type:'audio/wav'}));audio.src=objectUrl;
+ if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=URL.createObjectURL(new Blob([encodeWav(playback,rate)],{type:'audio/wav'}));audio.setSamples(playback,rate);audio.src=objectUrl;
  $('visualization').dataset.trimmedSeconds=trim.seconds.toFixed(3);$('visualization').dataset.playbackRate=String(rate);$('visualization').dataset.rawDuration=(native.length/rate).toFixed(3);
  if(live&&liveHistory.analysis){const preview=finalizeLiveTranscript({words:liveHistory.words},liveTakeStart,takeDuration);if(preview.words.length){result=liveReplayAnalysis(liveHistory.analysis,liveTakeStart,takeDuration);words=summarizeWords(preview.words,result);displayText=preview.text;}}
  render();controls();signal.postMessage({id:generation,samples:signalSamples});if(!live)requestAlignment();
@@ -257,11 +283,11 @@ function paintLive(force=false,time=null){
  const content=liveViewport.render(svg,drawing.scene,range),update=bindMotion(content,drawing.scene,{live:active});
  liveMotion=t=>{update?.(t);const tail=content.querySelector('.live-tail-layer');if(tail)tail.innerHTML=liveTailSVG(liveResult,drawing.scene,view.start,t);};
  for(const el of content.querySelectorAll('g.word')){
-  const local=known[Number(el.dataset.word)],start=local.start+view.start-liveTakeStart,end=local.end+view.start-liveTakeStart;
-  el.dataset.liveStart=String(start);el.dataset.liveEnd=String(end);
+  const local=known[Number(el.dataset.word)],start=(local.playStart??local.start)+view.start-liveTakeStart,end=(local.playEnd??local.end)+view.start-liveTakeStart;
+  el.dataset.liveStart=String(start);el.dataset.liveEnd=String(end);el.dataset.timingSource=local.timingSource||'provisional';
   if(!active&&end>0&&start<takeDuration){
    el.onmouseenter=el.onfocus=()=>showDetail(local);el.onmouseleave=el.onblur=hideDetail;
-   const play=()=>{audio.currentTime=Math.max(0,start-.01);clipEnd=Math.min(takeDuration,end+.01);poseTime=audio.currentTime;playAudio();};
+   const play=()=>{audio.pause();audio.currentTime=Math.max(0,start);clipEnd=Math.min(takeDuration,end);poseTime=audio.currentTime;playAudio();};
    el.onclick=play;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();play();}};
   }else{el.setAttribute('tabindex','-1');el.setAttribute('role','img');el.setAttribute('aria-label',el.getAttribute('aria-label').replace(/^Play /,''));}
  }
@@ -282,7 +308,7 @@ function render(){
  container.innerHTML=drawing.svg;motion=bindMotion(container,drawing.scene);
  container.querySelectorAll('g.word').forEach(el=>{
   const w=words[Number(el.dataset.word)],detail=()=>showDetail(w);el.onmouseenter=detail;el.onfocus=detail;el.onmouseleave=hideDetail;el.onblur=hideDetail;
-  const playWord=()=>{audio.currentTime=Math.max(0,w.start-.01);clipEnd=w.end+.01;poseTime=audio.currentTime;playAudio();};
+  const playWord=()=>{audio.pause();audio.currentTime=Math.max(0,w.playStart??w.start);clipEnd=w.playEnd??w.end;poseTime=audio.currentTime;playAudio();};
   el.onclick=playWord;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();playWord();}};
  });renderInsights();updatePlayback();
 }
@@ -294,16 +320,13 @@ function renderInsights(){
  const items=[['Pitch range',hz,'Hz'],['Speaking pace',pace,'wpm'],['Pauses',result?pauses.length:'—',result?`· ${pauseTime} s`:'']];
  items.forEach(([,value,unit],i)=>{const strong=$('insights').children[i].querySelector('strong');let small=strong.querySelector('small');if(!small){small=document.createElement('small');strong.append(small);}strong.firstChild.nodeValue=String(value);small.textContent=unit;});
 }
-async function playAudio(){try{if(liveSelected)liveViewport.resume();if(audio.currentTime<.02)poseTime=0;motion?.(reduced.matches?null:poseTime);await audio.play();}catch{message('Playback couldn’t start. Press play again.',true);}}
+async function playAudio(){try{if(liveSelected)liveViewport.resume();if(audio.currentTime<.02)poseTime=0;motion?.(reduced.matches?null:poseTime);await audio.play(clipEnd);}catch{message('Playback couldn’t start. Press play again.',true);}}
 $('play').onclick=()=>{clipEnd=null;if(audio.paused){if(audio.ended)audio.currentTime=0;poseTime=audio.currentTime;playAudio();}else audio.pause();};
-audio.onplay=()=>{$('play').classList.add('playing');$('play').setAttribute('aria-label','Pause recording');$('play').title='Pause recording';cancelAnimationFrame(playAnimation);lastPaint=0;playbackFrame();};
-audio.onpause=()=>{$('play').classList.remove('playing');$('play').setAttribute('aria-label','Play recording');$('play').title='Play recording';cancelAnimationFrame(playAnimation);updatePlayback();};
+audio.onplay=()=>{$('play').classList.add('playing');$('play').setAttribute('aria-label','Pause recording');$('play').title='Pause recording';cancelAnimationFrame(playAnimation);playbackFrame();};
+audio.onpause=()=>{$('play').classList.remove('playing');$('play').setAttribute('aria-label','Play recording');$('play').title='Play recording';cancelAnimationFrame(playAnimation);poseTime=audio.currentTime;updatePlayback();};
 audio.onended=()=>{clipEnd=null;poseTime=null;updatePlayback();};audio.onloadedmetadata=()=>{controls();updatePlayback();};
-audio.ontimeupdate=()=>{if(clipEnd!==null&&audio.currentTime>=clipEnd){audio.pause();clipEnd=null;}updatePlayback(false);};
-let lastPaint=0;
-function playbackFrame(now=0){
- if(clipEnd!==null&&audio.currentTime>=clipEnd){audio.pause();clipEnd=null;return;}
- if(now-lastPaint>=32||!lastPaint){poseTime=audio.currentTime;updatePlayback();lastPaint=now;}
+function playbackFrame(){
+ poseTime=audio.currentTime;updatePlayback();
  if(!audio.paused)playAnimation=requestAnimationFrame(playbackFrame);
 }
 function updatePlayback(paint=true){
@@ -327,7 +350,7 @@ $('download-image').onclick=()=>{
 };
 let resizeTimer;window.onresize=()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(!['recording','live'].includes(mode))render();else if(mode==='live')paintLive(true);},120);};
 document.addEventListener('visibilitychange',()=>{if(document.hidden){clipEditor.stopPreview();if(['recording','live'].includes(mode))stopRecording();else if(mode==='permission'){generation++;releaseMicrophone();mode='idle';render();controls();}else if(mode!=='stopping')releaseMicrophone();}else warmMicrophone();});
-window.addEventListener('pagehide',()=>{clipEditor.finish(false);releaseMicrophone();audio.pause();speech.terminate();signal.terminate();if(objectUrl)URL.revokeObjectURL(objectUrl);});
+window.addEventListener('pagehide',()=>{clipEditor.finish(false);releaseMicrophone();audio.close();speech.terminate();signal.terminate();timingWorker?.terminate();timingWorker=null;if(objectUrl)URL.revokeObjectURL(objectUrl);});
 window.addEventListener('pageshow',e=>{if(e.persisted){modelReady=false;initializeWorkers();clear();loadEngine();warmMicrophone();}});
 initializeWorkers();render();controls();loadEngine();
 if(window.isSecureContext&&window.AudioWorkletNode)Promise.resolve().then(()=>microphone.prepare()).catch(()=>{});warmMicrophone();

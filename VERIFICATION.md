@@ -1,6 +1,6 @@
 # GitHub Pages release verification
 
-114 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
+127 automated tests pass with `npm test`. The GitHub Pages workflow runs these tests before uploading `dist/` and publishing. The bundled runtime and fonts are included; no package installation or external build service is required for publication.
 
 ## Pitch and sentence endings
 
@@ -107,3 +107,23 @@ Browser verification used the actual AudioWorklet and Whisper worker with synthe
 114 automated tests pass. Added coverage checks full history beyond the old word/measurement limits, preserved row assignments, virtual scroll extent, manual position during new speech, explicit following, playback following, narrow scaling and full-session SVG output with both first and last words and finite contours. Existing recording, upload selection, audio quality, model cancellation, pitch-ending, shared rhythm-path and sample-layout tests pass.
 
 Session text and measured visual history grow with session duration in browser memory. Raw audio replay is still limited to the latest 30 seconds ending with the latest speech. This layout release does not change the speech model or establish a human-accent accuracy score.
+
+
+## Replay alignment, edge trimming and word clips, 21 October 2026
+
+127 automated tests pass. Live finalization now aligns its recognized English transcript to the exact trimmed 16 kHz analysis samples using the existing pinned Wav2Vec2 model. Confident paths update session word and character timestamps; unsupported tokens such as numerals split the forced path, remain uncertain, and do not cause adjacent words to consume their audio. Implausible timestamp changes are rejected. The first word is retained when its provisional Whisper interval overlaps the crop: attention timestamps can attach the initial waiting time to that word. Final timing updates preserve all older transcript rows.
+
+Playback uses native-rate PCM in Web Audio. Both full replay and word clips use one audio buffer, with start offsets and durations rounded to native sample boundaries. Audio stops on the audio scheduler instead of RAF or media timeupdate. Animation uses the output presentation clock when supported, with a latency-based fallback, and updates on each animation frame. Character motion follows the aligned character intervals instead of the previous fixed 160 ms delay and compressed word-time formula. CTC character intervals remain acoustic estimates, not phoneme annotations.
+
+Edge trimming now subtracts DC before measuring energy, estimates steady room noise separately, detects short speech even in a long wait, and protects soft consonants using a lower extension threshold. The remaining edge guards are 12 ms before speech and 35 ms after, replacing the old 60/140 ms padding. Original PCM between the boundaries remains unchanged. Word clicks have no added 10 ms lead-in or tail; bounded quiet-run refinement removes inter-word waiting while retaining internal stop closures and nearby final releases.
+
+Browser checks used finite synthetic microphone input through the actual AudioWorklet and workers, without human microphone access or injected recognition results:
+
+- A 48 kHz eight-word recording with two seconds of leading noise and a trailing wait retained all eight words, including the initial hello. All eight received CTC refinement. The native replay was 2.387 seconds after removing 1.998 seconds at the start. The final alignment pass took 623 ms on the isolated local preview. The there click scheduled exactly offset 0.341125 seconds for 0.332875 seconds at 48 kHz, matching the displayed refined interval. Full replay scheduled the entire 2.387-second buffer from zero.
+- A longer 117-word Live session preserved its entire visual history and refined 89 words in the retained replay window. Final alignment took 6.8 seconds in that local run. Seeking and the last word clip worked; the underneath clip scheduled a 0.509333-second native segment. A subsequent regression protects the soft release beyond the final model emission. Recognition, final alignment and first model downloads remain device- and network-dependent.
+- Ordinary sentence recording still matched all 11 sample words after automatic Stop, removed its leading/trailing waits, and retained 48 kHz audio. Clicking secret scheduled a 0.469896-second native segment.
+- The card stayed 1044 x 564 px at 1280 x 720. Live rows now use 208 units instead of 240, with a 68 px fading edge instead of 22 px. Scroll-back, seeking and controls remained inside the fixed card.
+
+A separate real-model integration check concatenated four synthetic words at known sample positions, with quiet intervals between them. All four formed confident CTC paths. Recovered starts were within 20 ms and ends within 47 ms of the fixture's protected acoustic-edge references in that run. This is a controlled synthetic boundary check, not a score for human accents or whispers.
+
+Added tests cover sample-scheduled word starts/stops, native-rate full replay, seeking, cancellation during AudioContext resume, completion events, steady noise/DC, short speech within a long wait, internal closures, soft final consonants, confidence/drift fallback, preserved session history, first-word cropping and measured character animation. The existing recording, upload, pitch-ending, rhythm contour, selection and virtual scrolling regressions pass. The existing latest-30-second Live audio replay limit remains unchanged.

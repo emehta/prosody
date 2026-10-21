@@ -33,7 +33,7 @@ body{height:100dvh;min-height:480px;display:flex;flex-direction:column}
 .live-session .visualization{overflow:hidden;justify-content:flex-start}
 .live-feed{height:100%;min-height:0;width:100%;flex:1 1 0;position:relative;overflow-y:auto;overflow-x:hidden;overflow-anchor:none;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:thin;scrollbar-color:var(--rule) transparent}
 .live-feed:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
-.live-feed.has-history-above{mask-image:linear-gradient(to bottom,transparent,black 22px,black 100%);-webkit-mask-image:linear-gradient(to bottom,transparent,black 22px,black 100%)}
+.live-feed.has-history-above{mask-image:linear-gradient(to bottom,transparent,black 68px,black 100%);-webkit-mask-image:linear-gradient(to bottom,transparent,black 68px,black 100%)}
 .live-pages{position:relative;width:100%;min-width:0;transform:none}
 .live-content,.live-before,.live-after{width:100%}
 .live-content .voice-svg{display:block;width:100%;height:auto;max-height:none;overflow:visible}

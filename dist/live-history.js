@@ -1,3 +1,4 @@
+import {shiftWord} from './word-timing.js?v=14';
 // Retain the session independently of rolling inference and replay buffers.
 // Rendering is virtualized; older words and their contours remain reviewable.
 export class LiveHistory{
@@ -39,6 +40,14 @@ export class LiveHistory{
   this.pauses=pauses.map(p=>({...p}));
   if(this.lastSoundEnd!==null&&a.duration-this.lastSoundEnd>=.18)pauses.push({start:this.lastSoundEnd,end:a.duration,duration:a.duration-this.lastSoundEnd});
   this.analysis={...a,frames:this.frames,energy:this.energy,pauses,windowStart:0};return this.analysis;
+ }
+ refine(words,analysis,start){
+  for(const w of words)if(Number.isInteger(w.sessionIndex)&&this.words[w.sessionIndex])this.words[w.sessionIndex]={...this.words[w.sessionIndex],...shiftWord(w,start)};
+  const end=start+analysis.duration;
+  this.frames=this.frames.filter(f=>f.t<start||f.t>end).concat(analysis.frames.map(f=>({...f,t:f.t+start}))).sort((a,b)=>a.t-b.t);
+  this.energy=this.energy.filter(f=>f.end<=start||f.start>=end).concat(analysis.energy.map(f=>({...f,t:f.t+start,start:f.start+start,end:f.end+start}))).sort((a,b)=>a.t-b.t);
+  this.pauses=this.pauses.filter(p=>p.end<=start||p.start>=end).concat(analysis.pauses.map(p=>({...p,start:p.start+start,end:p.end+start}))).sort((a,b)=>a.start-b.start);
+  this.analysis={...this.analysis,frames:this.frames,energy:this.energy,pauses:this.pauses};this.version++;
  }
 }
 function prefixBefore(items,time,key){let lo=0,hi=items.length;while(lo<hi){const m=(lo+hi)>>1;if(items[m][key]<time)lo=m+1;else hi=m;}return items.slice(0,lo);}

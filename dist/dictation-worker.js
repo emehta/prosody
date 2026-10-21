@@ -1,4 +1,4 @@
-import {LiveDictation,DICTATION_MODEL,DICTATION_REVISION,recognitionAudio,whisperWords} from './dictation.js?v=13';
+import {LiveDictation,DICTATION_MODEL,DICTATION_REVISION,recognitionAudio,whisperWords} from './dictation.js?v=14';
 let enginePromise=null,session=null,latestId=-1;
 async function engine(){
  if(!enginePromise)enginePromise=(async()=>{

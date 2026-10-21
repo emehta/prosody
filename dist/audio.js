@@ -1,4 +1,4 @@
-import {quantile} from './analysis.js?v=13';
+import {quantile} from './analysis.js?v=14';
 
 // Band-limited streaming conversion for analysis only. Playback always keeps
 // the original native-rate PCM. The same converter handles chunks and files.
@@ -50,20 +50,23 @@ export function uploadAnalysisWindow(samples,trim,rate=16000){
  return {samples:samples.subarray(start,end),offset:(trim.index-start)/rate};
 }
 
-// Trim the quiet edges without changing the PCM between them. A low-threshold look-back and 60 ms
-// cushion protect initial fricatives and stop releases. Internal pauses survive.
+// Estimate the steady noise floor independently of the loud speech. Remove DC
+// before detecting activity; a quiet room's constant noise is not an onset.
+// Low-threshold extension protects soft consonants with only a short guard.
 export function leadingTrim(samples,rate=16000,{quiet=false}={}){
  const hop=Math.max(1,Math.round(rate*.01)),levels=[];
- for(let i=0;i<samples.length;i+=hop){let energy=0;const end=Math.min(samples.length,i+hop);for(let j=i;j<end;j++)energy+=samples[j]*samples[j];levels.push(Math.sqrt(energy/Math.max(1,end-i)));}
- const loud=quantile(levels,.9),noise=quantile(levels,.15),gate=Math.max(quiet?.000001:.0003,Math.min(loud*.12,noise*4));
+ for(let i=0;i<samples.length;i+=hop){let energy=0,sum=0;const end=Math.min(samples.length,i+hop);for(let j=i;j<end;j++){energy+=samples[j]*samples[j];sum+=samples[j];}const n=Math.max(1,end-i);levels.push(Math.sqrt(Math.max(0,energy/n-(sum/n)**2)));}
+ const loud=quantile(levels,.995),noise=quantile(levels,.15),floor=quiet?.0000001:.00003,gate=Math.max(floor,Math.min(loud*.45,Math.max(loud*.035,noise*2.4)));
+ // Unchanging energy alone (fan noise/DC) provides no speech boundary.
+ if(loud<noise*1.35)return {index:0,endIndex:samples.length,seconds:0,speech:false};
  let onset=-1;
  for(let i=0;i<levels.length-2;i++)if(levels[i]>gate&&levels[i+1]>gate&&levels[i+2]>gate){onset=i;break;}
  if(onset<0)return {index:0,endIndex:samples.length,seconds:0,speech:false};
- const lowGate=Math.max(quiet?.0000005:.0002,Math.min(gate*.35,noise*1.6));let first=onset;
+ const lowGate=Math.max(floor*.5,Math.min(gate*.7,Math.max(loud*.002,noise*1.35)));let first=onset;
  while(first>0&&onset-first<30&&levels[first-1]>lowGate)first--;
  let last=levels.length-1;
  for(;last>=onset+2;last--)if(levels[last]>gate&&levels[last-1]>gate&&levels[last-2]>gate)break;
  const activeEnd=last;while(last<levels.length-1&&last-activeEnd<30&&levels[last+1]>lowGate)last++;
- const index=Math.max(0,first*hop-Math.round(rate*.06)),endIndex=Math.min(samples.length,(last+1)*hop+Math.round(rate*.14));
+ const index=Math.max(0,first*hop-Math.round(rate*.012)),endIndex=Math.min(samples.length,(last+1)*hop+Math.round(rate*.035));
  return {index,endIndex,seconds:index/rate,speech:true};
 }

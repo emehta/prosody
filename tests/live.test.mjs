@@ -37,7 +37,7 @@ test('A revised partial transcript may shrink and replace earlier provisional wo
 });
 test('Stopping Live finalizes actual speech in the trimmed replay, never a selected sentence',()=>{
  const a=finalizeLiveTranscript({words:[{word:'partial',start:38,end:40.5},{word:'hello',start:42,end:42.5},{word:'world',start:43,end:44}],text:'partial hello world'},40,3.5);
- assert.deepEqual(a.words.map(w=>w.word),['hello','world']);assert.equal(a.text,'hello world');assert.equal(a.words[0].start,2);assert.equal(a.words[1].end,3.5);assert.equal(a.match,1);assert.equal(a.transcribed,true);
+ assert.deepEqual(a.words.map(w=>w.word),['partial','hello','world']);assert.equal(a.text,'partial hello world');assert.equal(a.words[0].start,0);assert.equal(a.words[0].clippedStart,true);assert.equal(a.words[1].start,2);assert.equal(a.words[2].end,3.5);assert.equal(a.match,1);assert.equal(a.transcribed,true);
 });
 test('Continuous acoustics retain bounded memory and measure speech beyond 30 seconds',()=>{
  const live=new LiveAcoustics();let result;

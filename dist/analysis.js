@@ -1,4 +1,5 @@
 // All times are seconds. Analysis works on mono, 16 kHz PCM.
+import {shiftWord} from './word-timing.js?v=14';
 export const RATE = 16000;
 export const HOP = 160;
 export const WINDOW = 640;
@@ -155,7 +156,7 @@ export function alignCTC(logits, dims, text, vocab, duration, blank=0) {
   const words=[];let offset=0;
   for(const word of normalized.split(' ')) {
     const chars=spans.slice(offset,offset+word.length),count=chars.reduce((s,c)=>s+c.count,0);
-    words.push({word:word.toLowerCase(),start:chars[0].start*duration/T,end:chars.at(-1).end*duration/T,confidence:chars.reduce((s,c)=>s+c.prob,0)/Math.max(1,count)});
+    words.push({word:word.toLowerCase(),start:chars[0].start*duration/T,end:chars.at(-1).end*duration/T,confidence:chars.reduce((s,c)=>s+c.prob,0)/Math.max(1,count),characters:chars.map((c,i)=>({char:word[i].toLowerCase(),start:(i?(chars[i-1].end+c.start)/2:c.start)*duration/T,end:(i<chars.length-1?(c.end+chars[i+1].start)/2:c.end)*duration/T}))});
     offset+=word.length+1;
   }
   // CTC characters are sparse emission peaks. A small, bounded expansion covers
@@ -164,6 +165,7 @@ export function alignCTC(logits, dims, text, vocab, duration, blank=0) {
   words.forEach((w,i)=>{
     w.start=Math.max(0,w.start-Math.min(.04,i?(w.start-raw[i-1].end)/2:.04));
     w.end=Math.min(duration,w.end+Math.min(.04,i<raw.length-1?(raw[i+1].start-w.end)/2:.04));
+    w.characters[0].start=w.start;w.characters.at(-1).end=w.end;
   });
   const decoded=decodeCTC(logits,dims,vocab,blank);
   return {words,decoded,match:similarity(text,decoded)};
@@ -179,7 +181,7 @@ export function summarizeWords(words, analysis) {
   const data=words.map((original,i)=>{
     // CTC peaks are sparse: retain the audible onset and final release rather
     // than cutting the first/last word off at their token-emission boundaries.
-    const w={...original,start:i?original.start:Math.min(original.start,analysis.speechStart),end:i===words.length-1?Math.max(original.end,analysis.speechEnd):original.end};
+    const w=Number.isFinite(original.playStart)?{...original}:{...original,start:i?original.start:Math.min(original.start,analysis.speechStart),end:i===words.length-1?Math.max(original.end,analysis.speechEnd):original.end};
     const frames=timedSlice(analysis.frames,w.start,w.end), voiced=frames.filter(f=>f.hz);
     const hz=quantile(voiced.map(f=>f.hz),.5),rms=quantile(frames.map(f=>f.rms),.75);
     const syllables=Math.max(1,(w.word.toLowerCase().replace(/e$/,'').match(/[aeiouy]+/g)||[]).length);
@@ -220,7 +222,7 @@ export function alignWindowCTC(logits,dims,text,vocab,rawDuration,offset=0,playb
  if(last<=first)return {words:[],decoded:'',match:0,reason:'too-short'};
  const windowDims=[...dims];windowDims[windowDims.length-2]=last-first;
  const aligned=alignCTC(logits.subarray(first*V,last*V),windowDims,text,vocab,(last-first)*step,blank),shift=first*step-offset;
- aligned.words=aligned.words.map(w=>({...w,start:Math.max(0,w.start+shift),end:Math.max(0,Math.min(playbackDuration,w.end+shift))}));return aligned;
+ aligned.words=aligned.words.map(w=>({...shiftWord(w,shift),start:Math.max(0,w.start+shift),end:Math.max(0,Math.min(playbackDuration,w.end+shift))}));return aligned;
 }
 
 export function transcribeWindowCTC(logits,dims,vocab,rawDuration,offset=0,playbackDuration=rawDuration){

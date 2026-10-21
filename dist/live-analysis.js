@@ -1,6 +1,7 @@
-import {analyze,describeAcoustics,RATE,HOP} from './analysis.js?v=13';
-import {dictationActivity} from './dictation.js?v=13';
+import {analyze,describeAcoustics,RATE,HOP} from './analysis.js?v=14';
+import {dictationActivity} from './dictation.js?v=14';
 import {SampleRing} from './sample-ring.js';
+import {shiftWord} from './word-timing.js?v=14';
 
 // Revisit only a 640 ms overlap, retain the most recent 30 s of measurements.
 // Audio positions remain absolute across ring-buffer wraps and quiet passages.
@@ -36,7 +37,7 @@ export function liveView(analysis,aligned,{seconds=12,maxWords=22}={}){
   frames:analysis.frames.filter(f=>f.t>=start&&f.t<=end).map(f=>({...f,t:f.t-start})),
   energy:analysis.energy.filter(f=>f.end>start&&f.start<end).map(f=>({...f,t:f.t-start,start:Math.max(0,f.start-start),end:Math.min(end,f.end)-start})),
   pauses:analysis.pauses.filter(p=>p.start>=start&&p.end<=end).map(p=>({...p,start:p.start-start,end:p.end-start}))};
- return {analysis:measured,words:known.map(w=>({...w,start:w.start-start,end:w.end-start})),text:known.map(w=>w.word).join(' '),start,end};
+ return {analysis:measured,words:known.map(w=>shiftWord(w,-start)),text:known.map(w=>w.word).join(' '),start,end};
 }
 
 // Reuse measurements already visible in Live while final workers flush. The

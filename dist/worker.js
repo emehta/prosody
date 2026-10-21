@@ -1,8 +1,9 @@
-import {alignWindowCTC,transcribeWindowCTC,MODEL,MODEL_REVISION,RATE} from './analysis.js?v=13';
-import {MAX_SECONDS} from './limits.js?v=13';
+import {alignWindowCTC,transcribeWindowCTC,MODEL,MODEL_REVISION,RATE} from './analysis.js?v=14';
+import {alignReplay} from './replay-alignment.js?v=14';
+import {MAX_SECONDS} from './limits.js?v=14';
 import {StreamingCTC} from './streaming.js';
-import {LiveCTC} from './live-streaming.js?v=13';
-import {transcribeLiveCTC} from './live-transcript.js?v=13';
+import {LiveCTC} from './live-streaming.js?v=14';
+import {transcribeLiveCTC} from './live-transcript.js?v=14';
 let enginePromise=null,inferenceQueue=Promise.resolve(),session=null,latestId=-1;
 async function engine(){
   if(!enginePromise)enginePromise=(async()=>{
@@ -42,6 +43,13 @@ self.onmessage=async({data})=>{
     if(type==='cancel'){session?.cancel();session=null;latestId=id;return;}
     if(type==='start'){session?.cancel();latestId=id;session=newSession(id,data.live);return;}
     if(type==='chunk'){if(id===latestId)session?.append(samples);return;}
+    if(type==='refine'){
+      session?.cancel();latestId=id;const current=session=new StreamingCTC(infer,MAX_SECONDS*RATE),started=performance.now(),emissions=await current.finish(samples);
+      if(session!==current||id!==latestId)return;
+      const {vocab}=await engine(),words=alignReplay(emissions,vocab,data.words,data.analysis);
+      if(session!==current||id!==latestId)return;
+      self.postMessage({type:'refined',id,words,milliseconds:performance.now()-started});session=null;return;
+    }
     if(type==='retry-live'){const current=session;await engine();if(id===latestId&&session===current&&current instanceof LiveCTC)await current.resume();return;}
     if(type==='live-stop'){
       if(id!==latestId||!(session instanceof LiveCTC))return;

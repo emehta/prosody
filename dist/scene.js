@@ -1,7 +1,7 @@
-import {wordWidth,LETTERS} from './lettering.js?v=13';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=13';
-import {quantile} from './analysis.js?v=13';
-import {LIVE_ROW_HEIGHT,LIVE_TYPE_SCALE} from './live-layout.js?v=13';
+import {wordWidth,LETTERS} from './lettering.js?v=14';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=14';
+import {quantile} from './analysis.js?v=14';
+import {LIVE_ROW_HEIGHT,LIVE_TYPE_SCALE} from './live-layout.js?v=14';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const ease=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
 const f=n=>Number(n).toFixed(2);
@@ -28,13 +28,13 @@ export function createScene(analysis,words,text,small=false,{flow=false}={}){
   let start=row[0].start,end=row.at(-1).end;
   start=r?(rows[r-1].at(-1).end+start)/2:Math.max(0,Math.min(start,analysis.speechStart));
   end=r<rows.length-1?(end+rows[r+1][0].start)/2:Math.min(analysis.duration,Math.max(end,analysis.speechEnd));
-  row.start=start;row.end=end;row.pitch=pitchAnchors(analysis,row,start,end);row.top=r*rowH;row.base=row.top+(flow?148:182);
+  row.start=start;row.end=end;row.pitch=pitchAnchors(analysis,row,start,end);row.top=r*rowH;row.base=row.top+(flow?136:182);
  });
  const height=pitchHeight({...analysis,frames:analysis.rangeFrames||analysis.frames},flow?36:49.2);
  function frame(time=null){
   const full=time===null,layouts=[],glyphs=[],marks=[],pauses=[];
   rows.forEach((row,r)=>{
-   const poses=row.map(w=>{const progress=full?1:ease((time-w.start)/Math.max(.08,Math.min(.22,w.end-w.start)));return {...w,sx:1+(w.stretch-1)*progress,progress};});
+   const poses=row.map(w=>{const progress=full?1:ease((time-w.start)/Math.max(.01,w.end-w.start));return {...w,sx:1+(w.stretch-1)*progress,progress};});
    const used=poses.reduce((n,w)=>n+w.natural*w.sx+w.gap,0);let x=flow?pad:pad+(inner-used)/2;
    const anchors=[];
    for(const w of poses){
@@ -69,8 +69,8 @@ export function createScene(analysis,words,text,small=false,{flow=false}={}){
      const target=(contour.at(center)??row.base+15)-15;
      const slope=Math.atan2((contour.at(center+18)??target)-(contour.at(center-18)??target),36)*180/Math.PI;
      const angle=clamp(slope*.45+(target-row.base)/10,-15,15);
-     const letterTime=w.start+(i/Math.max(1,w.display.length))*(w.end-w.start)*.72;
-     const progress=full?1:ease((time-letterTime)/.16);
+     const measured=w.characters?.[i],letterTime=measured?.start??w.start+i/Math.max(1,w.display.length)*(w.end-w.start),letterEnd=measured?.end??w.start+(i+1)/Math.max(1,w.display.length)*(w.end-w.start);
+     const progress=full?1:ease((time-letterTime)/Math.max(.01,letterEnd-letterTime));
      const y=row.base+(target-row.base)*progress,rotation=angle*progress,sy=1+(w.height-1)*progress;
      const transform=`translate(${f(center)},${f(y)}) rotate(${f(rotation)}) scale(${f(scale*w.sx)},${f(scale*sy)}) translate(${f(-width/2)},0)`;
      glyphs.push({key:`${w.index}-${i}`,word:w.index,char,transform,x:center,y,rotation,sx:w.sx,sy,progress});offset+=width+6;

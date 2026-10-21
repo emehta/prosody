@@ -1,6 +1,6 @@
-import {wordWidth} from './lettering.js?v=13';
-import {quantile} from './analysis.js?v=13';
-export const LIVE_ROW_HEIGHT=240,LIVE_TYPE_SCALE=1.12;
+import {wordWidth} from './lettering.js?v=14';
+import {quantile} from './analysis.js?v=14';
+export const LIVE_ROW_HEIGHT=208,LIVE_TYPE_SCALE=1.12;
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 // Line breaks are committed as speech advances. New words fill from the left;
 // adding another line never rebalances, recenters or resizes earlier lines.
