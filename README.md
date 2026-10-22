@@ -37,6 +37,16 @@ Uploaded files (up to 100 MB) open a waveform editor. Drag either handle, move t
 
 Short, silent or mismatched recorded takes keep the full selected sentence visible. A measured pitch strip can appear below it without pretending to align the wrong words. Playback remains available.
 
+## Personal recording set
+
+Open https://emehta.github.io/prosody/recordings/ or **Test recordings** below the main sentence menu. This separate page preserves the main studio's current take in its original tab. Choose British, American or Indian and record the five audit sentences individually. The microphone is explicit; Stop saves, and the worklet also stops at 30 seconds. No speech model is downloaded on this page.
+
+Each microphone take is an untrimmed native-rate mono IEEE Float32 WAV, including waiting silence, quiet endings and internal pauses. No recognition, normalization, denoising or pitch gate is applied. Original files can also be imported (up to 30 seconds and 16 MB) without changing their bytes. Retakes are kept separately. A saved count increases only after its IndexedDB transaction commits. Save failures leave a replayable/downloadable draft and Retry saving; they never replace earlier committed takes.
+
+Takes remain in IndexedDB on this origin across reloads and tabs. They are not sent to GitHub, a server or Codex automatically, and do not sync to another browser/device. Browser data clearing/private-session closure can remove them; **Download set** makes a ZIP backup. Storage is bounded to 150 MiB for this recorder, with explicit failure and draft recovery. The page requests persistent origin storage where available but does not assume the browser grants it.
+
+The review ZIP includes every saved take/retake (and any still-open unsaved drafts), a manifest with exact prompts and intended deliveries, duration/rate/settings, source type, timestamps and SHA-256 hashes. Device/group IDs are excluded. Microphone audio stays Float32; imported bytes remain original. An assistant with access to the same browser can open this page and use Download set to retrieve the ZIP for local analysis; a URL alone does not expose recordings. Intended accent labels and written prompts are not acoustic ground truth.
+
 ## Rendering and motion
 
 Thin vector lettering retains a uniform stroke under scaling. Relative sound duration controls width and a more expressive vertical scale. Quiet intervals of at least 180 ms are excluded from word duration and provisional letter motion. Broad recognition timestamps are split against the measured quiet intervals before Live layout, so a pause before a word cannot elongate that word. Ongoing unrecognized silence occupies a short dashed tail rather than a continually growing line. A measured phrase break also protects the preceding word's final sound when model emissions end it too early. Letter position and bounded tilt follow local pitch and its slope. On playback, each row begins with straight letters at their normal width and height; letters move as their words are spoken and the blue contour is revealed in time. Pausing and seeking preserve the corresponding pose. The completed recording has a full visualization. Reduced-motion preferences keep a static pose.

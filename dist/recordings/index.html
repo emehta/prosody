@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f3f1eb">
+  <meta name="description" content="Record and save your five Prosody test sentences, in three personal accent deliveries.">
+  <title>Recording set · Prosody</title>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <script src="../theme.js?v=8"></script>
+  <link rel="stylesheet" href="../style.css?v=18">
+  <link rel="stylesheet" href="./style.css?v=1">
+</head>
+<body class="set-page">
+  <header class="set-header">
+    <a class="brand" href="../" aria-label="Prosody home"><svg viewBox="0 0 44 32" aria-hidden="true"><path d="M2 19C8 19 6 6 12 6S15 28 22 28 25 3 32 3 34 19 42 19"/></svg>prosody<span>.</span></a>
+    <div class="theme-switch" role="group" aria-label="Color theme">
+      <button id="theme-light" class="icon-button" aria-label="Light mode" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.4 1.4m11.2 11.2L19 19M5 19l1.4-1.4M17.6 6.4 19 5"/></svg></button>
+      <button id="theme-dark" class="icon-button" aria-label="Dark mode" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.7 14.4A9 9 0 0 1 9.6 3.3a9 9 0 1 0 11.1 11.1Z"/></svg></button>
+    </div>
+  </header>
+  <main class="set-main">
+    <div class="set-heading"><div><h1>Recording set</h1><p>Five sentences. Three accents. Your original audio.</p></div><span id="total-progress" class="total-progress">0 / 15 saved</span></div>
+    <section class="set-card" aria-label="Test recordings">
+      <div id="accents" class="accents" role="group" aria-label="Your intended accent">
+        <button data-accent="british" aria-pressed="true">British <span>0 / 5</span></button>
+        <button data-accent="american" aria-pressed="false">American <span>0 / 5</span></button>
+        <button data-accent="indian" aria-pressed="false">Indian <span>0 / 5</span></button>
+      </div>
+      <p class="recording-instruction">Read naturally. Leave a second of quiet before and after. Press stop to save.</p>
+      <div id="sentences" class="sentences"></div>
+      <div class="set-footer">
+        <p id="storage-note">Saved in this browser. Tell Codex when you’re finished.</p>
+        <button id="download-set" class="export-button" disabled>Download set</button>
+      </div>
+    </section>
+    <p class="set-status" id="set-status" role="status" aria-live="polite"></p>
+    <p class="backup-note">Saved takes stay here after reloading. Download the set for a backup; browser data does not sync between devices.</p>
+    <noscript><p>Enable JavaScript to record and save your test set.</p></noscript>
+  </main>
+  <a id="archive-link" hidden></a>
+  <script type="module" src="./app.js?v=1"></script>
+</body>
+</html>

@@ -158,3 +158,12 @@ Browser checks used finite synthetic native 48 kHz audio through the actual micr
 - The fixed card remained 1044 x 564 px at 1280 x 720. Scroll-back still recovered the original first row after replay; following could be resumed independently.
 
 135 tests pass, including new regressions for continuous row motion without animation restarts, preservation of manual scroll position, pause-independent word stretch, frozen letter motion during silence, true held sounds, bounded dashed silent tails, neutral motion before the first audible word and the complete greeting release. Recognition and character boundaries remain estimates; this release does not establish a human-accent score.
+
+
+## Personal recording-set verification — 22 October 2026
+
+- Added 14 focused tests for untrimmed Float32 preservation, quiet input without F0 admission, native metadata, capture acknowledgement/cancel/stop/failure, completion counts, retakes, ZIP interoperability and SHA-256 integrity. The existing 148-test baseline also passes.
+- Browser checked a real human whisper imported locally, two retakes retained, separate accent/prompt slots, progress across reload, native Float32 WAV metadata/playability, and 44 px recording controls without horizontal overflow at 390 px.
+- Used the actual browser Download set action and read its returned Downloads path. Python zipfile verified archive integrity; exported human audio was byte-identical to the original, with the matching manifest hash.
+- Real microphone hardware was not opened during automated QA. Worklet capture already has regression coverage; the new recorder's permission, start, final flush, interruption, automatic completion and failure lifecycles were tested with controlled microphone callbacks. Production recordings remain user-controlled.
+- Main prosody analysis/rendering controllers and worker code are unchanged. Only a separate recording page and a navigation link were added to the existing studio.
