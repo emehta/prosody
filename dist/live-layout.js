@@ -1,6 +1,6 @@
-import {wordWidth} from './lettering.js?v=17';
-import {quantile} from './analysis.js?v=17';
-import {spokenDuration} from './word-timing.js?v=17';
+import {wordWidth} from './lettering.js?v=20';
+import {quantile} from './analysis.js?v=20';
+import {spokenDuration} from './word-timing.js?v=20';
 export const LIVE_ROW_HEIGHT=208,LIVE_TYPE_SCALE=1.12;
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 // Line breaks are committed as speech advances. New words fill from the left;
@@ -9,7 +9,10 @@ export class LiveLayout{
  constructor(){this.breaks=[];this.metrics=[];this.serial=0;}
  update(words,analysis,small=false,{maxRows=Infinity}={}){
   if(!words.length)return {words:[],lastRow:0};
-  const speed=quantile(words.map(w=>spokenDuration(w)/Math.max(1,wordWidth(w.word))),.5)||.003;
+  // Recent delivery sets the scale for newly spoken words. Sorting every word
+  // in a long session is unnecessary, and an early delivery style should not
+  // dictate the scale an hour later. Committed word metrics remain unchanged.
+  const speed=quantile(words.slice(-96).map(w=>spokenDuration(w)/Math.max(1,wordWidth(w.word))),.5)||.003;
   const scale=LIVE_TYPE_SCALE,inner=(small?600:1100)-80;
   const previous=new Map();for(const m of this.metrics){const key=m.word+':'+Math.round(m.start*10);if(!previous.has(key))previous.set(key,[]);previous.get(key).push(m);}
   const savedMetrics=[],items=words.map((w,i)=>{

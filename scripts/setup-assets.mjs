@@ -12,3 +12,7 @@ const pairs=[
 await mkdir('dist/vendor',{recursive:true});await mkdir('dist/assets',{recursive:true});
 for(const [source,target] of pairs)await copyFile('node_modules/'+source,'dist/'+target);
 console.log('Browser runtime and fonts copied.');
+const {readFile,writeFile}=await import('node:fs/promises');const {createHash}=await import('node:crypto');
+const packages=Object.fromEntries(await Promise.all(['@huggingface/transformers','@fontsource/dm-sans'].map(async name=>[name,JSON.parse(await readFile('node_modules/'+name+'/package.json','utf8')).version])));
+const files=await Promise.all(pairs.map(async([,path])=>{const bytes=await readFile('dist/'+path);return {path,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};}));
+await writeFile('dist/asset-manifest.json',JSON.stringify({packages,files},null,2)+'\n');

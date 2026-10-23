@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {createScene} from '../dist/scene.js';
+import {createScene,characterDurationShapes,glyphEnvelope,wordIdentity} from '../dist/scene.js';
 import {voiceSVG} from '../dist/view.js';
 const example=JSON.parse(await readFile(new URL('../dist/assets/example.json',import.meta.url),'utf8'));
 function delivery(text,variant=0){
@@ -74,4 +74,34 @@ test('All five sentences keep stable line breaks and fit throughout varied deliv
    }
   }
  }
+});
+test('Character duration shaping needs complete supported CTC intervals and abstains on provisional timing',()=>{
+ const word={word:'banana',start:0,end:.6,confidence:.91,timingSource:'ctc-refined',characters:[['b',0,.05],['a',.05,.1],['n',.1,.15],['a',.15,.45],['n',.45,.5],['a',.5,.6]].map(([char,start,end])=>({char,start,end}))};
+ const shape=characterDurationShapes(word);
+ assert.ok(shape[3].sx>shape[1].sx*1.5);assert.ok(shape[3].sy>shape[1].sy);
+ assert.deepEqual(shape[0],{sx:1,sy:1});
+ for(const altered of [{uncertain:true},{confidence:.3},{confidence:undefined},{timingSource:'whisper'},{timingSource:'provisional'},{characters:word.characters.slice(1)},{characters:word.characters.map(c=>({...c,char:'x'}))},{characters:word.characters.map((c,i)=>i===1?{...c,end:.65}:c)}])assert.ok(characterDurationShapes({...word,...altered}).every(s=>s.sx===1&&s.sy===1));
+ assert.ok(shape.every(s=>s.sx>=.78&&s.sx<=1.58&&s.sy>=.83&&s.sy<=1.32));
+});
+test('A quiet gap inside an aligned vowel cannot create a fictitious held character',()=>{
+ const text='banana',word={word:text,start:0,end:1,confidence:.95,timingSource:'ctc-refined',speechSpans:[{start:0,end:.2},{start:.8,end:1}],characters:[['b',0,.05],['a',.05,.1],['n',.1,.15],['a',.15,.85],['n',.85,.9],['a',.9,1]].map(([char,start,end])=>({char,start,end}))};
+ const a={...example,words:[word],duration:1,speechStart:0,speechEnd:1,pauses:[{start:.2,end:.8}]},scene=createScene(a,[word],text),shapes=scene.rows[0][0].letterShapes;
+ assert.ok(shapes[3].durationX<1.2,'the vowel receives only its active sound, not the .6s pause');
+ const before=scene.frame(.3).glyphs,after=scene.frame(.7).glyphs;
+ assert.deepEqual(before.map(g=>g.sx),after.map(g=>g.sx));assert.deepEqual(before.map(g=>g.sy),after.map(g=>g.sy));
+});
+test('Extreme duration and pronunciation poses stay inside their own compact Live row',()=>{
+ const text='tall bubbly water giddy fly today',a=delivery(text,1),all=a.words.map((w,i)=>({...w,liveRow:Math.floor(i/3),liveStretch:i%2?1.95:.62,liveHeight:1.45,pronunciation:[{index:w.word.indexOf('a'),kind:'rounded-a',start:w.start,end:w.end,duration:w.end-w.start,confidence:.95,source:'phoneme-model'}]}));
+ for(const small of [false,true]){
+  const scene=createScene(a,all,text,small,{flow:true});assert.equal(scene.rowH,208);
+  for(const t of [0,null,...all.flatMap(w=>[w.start,(w.start+w.end)/2,w.end])])for(const glyph of scene.frame(t).glyphs){
+   const box=glyphEnvelope(glyph),top=glyph.row*208;
+   assert.ok(box.top>=top+5.9,`top clipped: ${glyph.char}`);assert.ok(box.bottom<=top+200.1,`descender clipped: ${glyph.char}`);
+   assert.ok(box.left>=24&&box.right<=scene.W-24,`tilted edge reaches outside its row: ${glyph.char}`);
+  }
+ }
+});
+test('Stable word identity survives virtual-window timestamp and index changes',()=>{
+ assert.equal(wordIdentity({word:'water',start:40,liveIndex:20}),wordIdentity({word:'water',start:.2,liveIndex:20,index:0}));
+ assert.notEqual(wordIdentity({word:'water',start:40,liveIndex:20}),wordIdentity({word:'water',start:40.8,liveIndex:21}));
 });

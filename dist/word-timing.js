@@ -1,5 +1,7 @@
+import {binActive} from './acoustic-activity.js?v=20';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const percentile=(items,p)=>{const a=items.slice().sort((a,b)=>a-b);return a[Math.min(a.length-1,Math.floor(a.length*p))]||0;};
+function energyRange(bins,start,end){let lo=0,hi=bins.length;while(lo<hi){const m=(lo+hi)>>1;if(bins[m].end<=start)lo=m+1;else hi=m;}const first=lo;hi=bins.length;while(lo<hi){const m=(lo+hi)>>1;if(bins[m].start<end)lo=m+1;else hi=m;}return bins.slice(first,lo);}
 export function shiftWord(w,delta){
  const out={...w,start:w.start+delta,end:w.end+delta};
  if(w.characters)out.characters=w.characters.map(c=>({...c,start:c.start+delta,end:c.end+delta}));
@@ -13,7 +15,7 @@ export function shiftWord(w,delta){
 export function quietIntervals(analysis){
  const bins=analysis.energy||[],quiet=[];let start=null;
  for(const b of bins){
-  if(b.rms<(analysis.threshold||1e-7)){start??=b.start;}
+  if(!binActive(b,analysis.threshold||1e-7)){start??=b.start;}
   else if(start!==null){if(b.start-start>=.18-1e-8)quiet.push({start,end:b.start});start=null;}
  }
  if(start!==null&&bins.at(-1).end-start>=.18-1e-8)quiet.push({start,end:bins.at(-1).end});
@@ -44,17 +46,24 @@ export function tightenWords(words,analysis){
   // A final soft release can follow the last CTC emission. Final analysis is
   // already edge-trimmed, so include its nearby measured speech ending.
   if(!next&&analysis.speechEnd>end&&analysis.speechEnd-end<.25)end=Math.min(right,analysis.speechEnd);
-  const local=bins.filter(b=>b.end>start-.14&&b.start<end+.14),loud=percentile(local.map(b=>b.rms),.8);
+  const local=energyRange(bins,start-.14,end+.14),loud=percentile(local.map(b=>b.rms),.8);
   const gate=Math.max(1e-7,Math.min(loud*.055,Math.max(floor*1.8,analysis.threshold*.3)));
+  const audible=b=>b.activity==='periodic-protected'||b.rms>=gate;
   const nearStart=local.filter(b=>b.end>=Math.max(left,start-.12)&&b.start<=Math.min(end,start+.16));
   // Only move past a genuine quiet run, not an individual stop closure.
   let quiet=null,onset=null;
-  for(const b of nearStart){if(b.rms<gate){quiet??=b.start;}else{if(quiet!==null&&quiet<=start+.015&&b.start-quiet>=.019)onset=b.start;quiet=null;}}
+  for(const b of nearStart){if(!audible(b)){quiet??=b.start;}else{if(quiet!==null&&quiet<=start+.002&&b.start-quiet>=.019)onset=b.start;quiet=null;}}
   if(onset!==null&&onset<=start+.12)start=clamp(onset-.003,left,end-.01);
   const nearEnd=local.filter(b=>b.end>=Math.max(start+.01,end-.10)&&b.start<=Math.min(right,end+.12));let quietStart=null;
-  for(const b of nearEnd){if(b.rms<gate){quietStart??=b.start;if(b.end-quietStart>=.029&&b.end>=end-.005){end=clamp(quietStart+.004,start+.01,right);break;}}else quietStart=null;}
+  for(const b of nearEnd){if(!audible(b)){quietStart??=b.start;if(b.end-quietStart>=.029&&b.end>=end-.005){
+   // A stop closure is not the end if a nearby release is already visible
+   // before the neighboring word's protected boundary.
+   const release=nearEnd.find(next=>next.start>=b.end-1e-8&&next.start<=b.end+.04&&audible(next));
+   if(release){quietStart=null;continue;}
+   end=clamp(quietStart+.004,start+.01,right);break;
+  }}else quietStart=null;}
   // A long gap can lie wholly inside a recognizer's over-wide word interval.
-  const active=local.filter(b=>b.rms>=gate&&b.end>start&&b.start<end);
+  const active=local.filter(b=>audible(b)&&b.end>start&&b.start<end);
   if(active.length){if(active[0].start>start+.025)start=Math.max(left,active[0].start-.003);if(active.at(-1).end<end-.025)end=Math.min(right,active.at(-1).end+.004);}
   const characters=original.characters?.map((c,j,list)=>({...c,start:j?clamp(c.start,start,end):start,end:j===list.length-1?end:clamp(c.end,start,end)}));
   spans=spokenSpans({start,end},pauses);

@@ -1,10 +1,10 @@
-import {analyze} from './analysis.js?v=17';
-import {LiveAcoustics} from './live-analysis.js?v=17';
+import {analyze} from './analysis.js?v=20';
+import {LiveAcoustics} from './live-analysis.js?v=20';
 let live=null,liveId=-1;
 self.onmessage=({data})=>{
  const started=performance.now();
  try{
-  if(data.type==='live-start'){live=new LiveAcoustics();liveId=data.id;return;}
+  if(data.type==='live-start'){live=null;liveId=data.id;live=new LiveAcoustics({startTime:data.startTime??0});return;}
   if(data.type==='live-chunk'){
    if(!live||data.id!==liveId)return;const result=live.append(data.samples);
    if(result)self.postMessage({type:'live-acoustic',id:data.id,result,milliseconds:performance.now()-started});return;

@@ -1,9 +1,27 @@
-import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=17';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=17';
-import {createScene} from './scene.js?v=17';
-import {quietIntervals} from './word-timing.js?v=17';
-import {CLEAR_T_PATHS} from './pronunciation.js?v=17';
+import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=20';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=20';
+import {createScene} from './scene.js?v=20';
+import {quietIntervals} from './word-timing.js?v=20';
+import {CLEAR_T_PATHS} from './pronunciation.js?v=20';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
+// Word indices change when a Live window is virtualized. Preserve the stable
+// session identity, without constructing a selector from recognized speech.
+export function focusedWord(container){
+ const active=container.ownerDocument?.activeElement;
+ if(!active||!container.contains(active))return null;
+ const word=active.closest?.('[data-word-id]');
+ return word?{identity:word.dataset.wordId}:null;
+}
+export function restoreWordFocus(container,snapshot,fallback=null){
+ if(!snapshot)return false;
+ const match=[...container.querySelectorAll('[data-word-id]')].find(el=>el.dataset.wordId===snapshot.identity&&el.getAttribute('tabindex')!=='-1');
+ (match||fallback)?.focus({preventScroll:true});return !!match;
+}
+export function replaceVisualization(container,svg){
+ const snapshot=focusedWord(container),top=container.scrollTop,left=container.scrollLeft;
+ container.innerHTML=svg;restoreWordFocus(container,snapshot);
+ if(Number.isFinite(top))container.scrollTop=top;if(Number.isFinite(left))container.scrollLeft=left;
+}
 export function promptSVG(text,small=false){
  const W=small?600:1100,pad=32,scale=small?1.12:1.36;
  const items=text.split(/\s+/).map(word=>({word:word.replace(/[^a-z',.?]/gi,''),width:wordWidth(word.replace(/[^a-z',.?]/gi,''),scale),gap:24,clause:word.endsWith(',')}));
@@ -22,7 +40,7 @@ export function pitchSVG(analysis,small=false){
 export function voiceSVG(analysis,words,text,small=false,{time=null,flow=false}={}){
  if(!words.length)return {svg:unalignedSVG(analysis,text,small),rows:[],scene:null};
  const scene=createScene(analysis,words,text,small,{flow}),frame=scene.frame(time),{W,H,rowH}=scene;
- const parts=[`<svg xmlns="http://www.w3.org/2000/svg" class="voice-svg" id="voice-svg" viewBox="0 -12 ${W} ${H+12}" role="group" aria-label="Pitch contour and spoken words"><title>${esc(text)}</title><desc>Letters widen and grow taller with relative duration. Letter position and tilt follow measured pitch. Playback reveals these movements and the shared contour as each word is spoken.</desc>`];
+ const parts=[`<svg xmlns="http://www.w3.org/2000/svg" class="voice-svg" id="voice-svg" viewBox="0 -12 ${W} ${H+12}" role="group" aria-label="Pitch contour and spoken words"><title>${esc(text)}</title><desc>Letter width and height express estimated relative spoken duration. Supported character alignment adds bounded local shaping; it is not exact phoneme duration. Position and tilt follow measured voiced pitch, with interpolation through unvoiced gaps. Coral segments estimate energy and prominence. Playback reveals these movements as each word is spoken.</desc>`];
  for(const layout of frame.layouts){
   const r=layout.r,top=r*rowH,id=`contour-${r}`;
   parts.push(`<defs><path id="${id}" d="${layout.d}"/><clipPath id="reveal-${r}"><rect data-reveal="${r}" x="0" y="${top-12}" width="${layout.reveal}" height="${rowH+24}"/></clipPath></defs><g clip-path="url(#reveal-${r})"><use href="#${id}" class="pitch-line${layout.unvoiced?' unvoiced-contour':''}"/>`);
@@ -32,7 +50,8 @@ export function voiceSVG(analysis,words,text,small=false,{time=null,flow=false}=
   }
   parts.push('</g>');
   for(const w of layout.words){
-   parts.push(`<g class="word" data-word="${w.index}" role="button" tabindex="0" aria-label="Play ${esc(w.word)}, ${(w.end-w.start).toFixed(2)} seconds${w.uncertain?', uncertain timing':''}"><g class="lettering">`);
+   const labels={'rounded-a':'rounded A','clear-t':'clear T','tapped-t':'light tapped T','caught-t':'caught T'},features=[...new Set((w.pronunciation||[]).map(p=>labels[p.kind]))].filter(Boolean);
+   parts.push(`<g class="word" data-word="${w.index}" data-word-id="${esc(w.identity)}" role="button" tabindex="0" aria-label="Play ${esc(w.word)}, approximately ${(w.end-w.start).toFixed(2)} seconds, ${w.uncertain?'uncertain':'estimated'} timing${features.length?', estimated '+esc(features.join(', ')):''}"><g class="lettering">`);
    for(const glyph of frame.glyphs.filter(g=>g.word===w.index)){
     const original=(LETTERS[glyph.char]?.paths||[]).map(d=>`<path d="${d}"/>`).join(''),phone=glyph.pronunciation,p=glyph.phoneProgress;
     let alternate=original;

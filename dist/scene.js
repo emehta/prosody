@@ -1,23 +1,53 @@
-import {wordWidth,LETTERS} from './lettering.js?v=17';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=17';
-import {quantile} from './analysis.js?v=17';
-import {LIVE_ROW_HEIGHT,LIVE_TYPE_SCALE} from './live-layout.js?v=17';
-import {spokenDuration,spokenElapsed} from './word-timing.js?v=17';
-import {pronunciationFeatures,pronunciationShape} from './pronunciation.js?v=17';
+import {wordWidth,LETTERS} from './lettering.js?v=20';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=20';
+import {quantile} from './analysis.js?v=20';
+import {LIVE_ROW_HEIGHT,LIVE_TYPE_SCALE} from './live-layout.js?v=20';
+import {spokenDuration,spokenElapsed} from './word-timing.js?v=20';
+import {pronunciationFeatures,pronunciationShape} from './pronunciation.js?v=20';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const ease=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
 const f=n=>Number(n).toFixed(2);
+// CTC characters are orthographic timing estimates, not a phoneme inventory.
+// Use supported, complete intervals only to compare vowel groups within a word;
+// never manufacture local duration from equally divided provisional timestamps.
+export function characterDurationShapes(word){
+ const text=word.word.toLowerCase(),chars=word.characters;
+ const plain=Array.from(text,()=>({sx:1,sy:1}));
+ if(word.uncertain||!Number.isFinite(word.confidence)||word.confidence<.45||word.timingSource==='whisper'||word.timingSource==='provisional'||!chars||chars.length!==text.length)return plain;
+ if(chars.some((c,i)=>!Number.isFinite(c.start+c.end)||c.end<=c.start||c.start<word.start-.025||c.end>word.end+.025||c.char?.toLowerCase()!==text[i]||(i&&c.start<chars[i-1].end-.015)))return plain;
+ const groups=[...text.matchAll(/[aeiouy]+/g)];
+ if(groups.length<2)return plain;
+ const durations=groups.map(g=>chars.slice(g.index,g.index+g[0].length).reduce((n,c)=>n+spokenDuration(c),0));
+ const mean=durations.reduce((n,d)=>n+d,0)/durations.length;
+ if(mean<.025)return plain;
+ groups.forEach((g,i)=>{
+  const ratio=clamp(durations[i]/mean,.45,2.5),sx=clamp(ratio**.48,.78,1.58),sy=clamp(ratio**.32,.83,1.32);
+  for(let n=g.index;n<g.index+g[0].length;n++)plain[n]={sx,sy};
+ });
+ return plain;
+}
+// Stable session identity survives viewport-relative timestamp/index changes.
+export function wordIdentity(word){
+ const id=word.id??word.sessionId??word.sessionIndex??word.liveIndex;
+ return `${id===undefined?'time-'+Math.round(word.start*100):'id-'+id}:${word.word.toLowerCase()}`;
+}
+export function glyphEnvelope(glyph){
+ const angle=glyph.rotation*Math.PI/180,c=Math.abs(Math.cos(angle)),s=Math.abs(Math.sin(angle));
+ const half=glyph.metricWidth*glyph.scaleX/2,top=Math.max(0,-glyph.metricTop)*glyph.scaleY,bottom=Math.max(0,glyph.metricBottom)*glyph.scaleY;
+ return {left:glyph.x-half*c-Math.max(top,bottom)*s,right:glyph.x+half*c+Math.max(top,bottom)*s,top:glyph.y-half*s-top*c,bottom:glyph.y+half*s+bottom*c};
+}
 export function createScene(analysis,words,text,small=false,{flow=false}={}){
  const W=small?600:1100,pad=40,inner=W-pad*2,preferredScale=flow?LIVE_TYPE_SCALE:small?1.12:1.36,rowH=flow?LIVE_ROW_HEIGHT:294,minGap=25;
  const source=text.split(/\s+/),speed=quantile(words.filter(w=>!w.pending).map(w=>spokenDuration(w)/Math.max(1,wordWidth(w.word))),.5)||.002;
  const items=words.map((w,i)=>{
   const display=w.word+(source[i]?.match(/[,.?]$/)?.[0]||''),natural=wordWidth(display,preferredScale);
-  const letterShapes=[...display.toLowerCase()].map((char,index)=>{const feature=pronunciationFeatures(w,index),shape=pronunciationShape(feature,spokenDuration(w));return {feature,...shape,width:LETTERS[char]?.width??12};});
+  const characters=w.characters?.map(c=>({...c,speechSpans:w.speechSpans?.map(s=>({start:Math.max(s.start,c.start),end:Math.min(s.end,c.end)})).filter(s=>s.end>s.start)}));
+  const durationShapes=characterDurationShapes({...w,characters});
+  const letterShapes=[...display.toLowerCase()].map((char,index)=>{const feature=pronunciationFeatures(w,index),phone=pronunciationShape(feature,spokenDuration(w)),duration=durationShapes[index]||{sx:1,sy:1};return {feature,...phone,phoneX:phone.sx,phoneY:phone.sy,durationX:duration.sx,durationY:duration.sy,sx:phone.sx*duration.sx,sy:phone.sy*duration.sy,width:LETTERS[char]?.width??12};});
   const extra=letterShapes.reduce((n,s)=>n+s.width*Math.max(0,s.sx-1)*preferredScale,0);
   const relative=(spokenDuration(w)/Math.max(1,wordWidth(w.word)))/speed;
   const stretch=w.liveStretch??(w.pending?1:clamp(relative**.65,.62,1.95)),height=w.liveHeight??(w.pending?1:clamp(relative**.32,.76,1.45));
-  const characters=w.characters?.map(c=>({...c,speechSpans:w.speechSpans?.map(s=>({start:Math.max(s.start,c.start),end:Math.min(s.end,c.end)})).filter(s=>s.end>s.start)}));
-  return {...w,characters,index:i,display,natural,extra,letterShapes,stretch,height,width:(natural+extra)*Math.max(1,stretch),gap:i?(!w.pending&&!words[i-1].pending?clamp((w.start-words[i-1].end)*105,25,85):minGap):0,clause:source[i]?.endsWith(',')};
+  return {...w,characters,index:i,identity:wordIdentity(w),display,natural,extra,letterShapes,stretch,height,width:(natural+extra)*Math.max(1,stretch),gap:i?(!w.pending&&!words[i-1].pending?clamp((w.start-words[i-1].end)*105,25,85):minGap):0,clause:source[i]?.endsWith(',')};
  });
  // Choose line breaks from ordinary lettering, independent of the delivery.
  // Reserve the widest animated pose, fitting the type uniformly and compressing
@@ -41,7 +71,7 @@ export function createScene(analysis,words,text,small=false,{flow=false}={}){
   rows.forEach((row,r)=>{
    const poses=row.map(w=>{
     const progress=full?1:ease(spokenElapsed(w,time)/Math.max(.01,spokenDuration(w))),sx=1+(w.stretch-1)*progress;
-    const shapes=w.letterShapes.map(s=>{const p=!s.feature?0:full?1:ease(spokenElapsed(s.feature,time)/Math.max(.02,spokenDuration(s.feature)));return {...s,progress:p,currentX:1+(s.sx-1)*p,currentY:1+(s.sy-1)*p};});
+    const shapes=w.letterShapes.map((s,i)=>{const p=!s.feature?0:full?1:ease(spokenElapsed(s.feature,time)/Math.max(.02,spokenDuration(s.feature))),measured=w.characters?.[i],local=full?1:measured?ease(spokenElapsed(measured,time)/Math.max(.01,spokenDuration(measured))):0;return {...s,progress:p,currentX:(1+(s.phoneX-1)*p)*(1+(s.durationX-1)*local),currentY:(1+(s.phoneY-1)*p)*(1+(s.durationY-1)*local)};});
     const extra=shapes.reduce((n,s)=>n+s.width*(s.currentX-1)*scale,0);
     return {...w,sx,progress,shapes,currentWidth:(w.natural+extra)*sx};
    });
@@ -81,9 +111,23 @@ export function createScene(analysis,words,text,small=false,{flow=false}={}){
      const angle=clamp(slope*.45+(target-row.base)/10,-15,15);
      const measured=w.characters?.[i],elapsed=spokenElapsed(w,time),span=spokenDuration(w),letterTime=i/Math.max(1,w.display.length)*span,letterEnd=(i+1)/Math.max(1,w.display.length)*span;
      const progress=full?1:measured?ease(spokenElapsed(measured,time)/Math.max(.01,spokenDuration(measured))):ease((elapsed-letterTime)/Math.max(.01,letterEnd-letterTime));
-     const y=row.base+(target-row.base)*progress-(shape.lift||0)*shape.progress,rotation=angle*progress,sy=(1+(w.height-1)*progress)*shape.currentY;
+     const y=row.base+(target-row.base)*progress-(shape.lift||0)*shape.progress;
+     let rotation=angle*progress;
+     let sy=(1+(w.height-1)*progress)*shape.currentY;
+     // Keep every transformed outline inside its own row. Only a pose that
+     // would collide is height-limited; row spacing and measured pitch stay put.
+     const metricTop=Math.min(glyph?.top??-25,shape.variant==='tapped-t'?-68:0),metricBottom=glyph?.bottom??0;
+     // A tall tilted edge letter can otherwise reach the neighboring word.
+     // Limit only that pose's rotation, inside half the existing word gap;
+     // neither the measured contour nor every row's spacing is enlarged.
+     const half=width*scale*w.sx*shape.currentX/2,reach=Math.max(-metricTop,metricBottom)*scale*sy;
+     const clearance=Math.min(center-w.x,w.x+w.currentWidth-center)+minGap*.45;
+     for(let guard=0;guard<12&&half*Math.abs(Math.cos(rotation*Math.PI/180))+reach*Math.abs(Math.sin(rotation*Math.PI/180))>clearance;guard++)rotation*=.75;
+     const radians=rotation*Math.PI/180,cos=Math.abs(Math.cos(radians)),rotationPad=width/2*scale*w.sx*shape.currentX*Math.abs(Math.sin(radians));
+     if(metricTop<0)sy=Math.min(sy,Math.max(.15,(y-row.top-6-rotationPad)/(-metricTop*scale*cos)));
+     if(metricBottom>0)sy=Math.min(sy,Math.max(.15,(row.top+rowH-8-y-rotationPad)/(metricBottom*scale*cos)));
      const transform=`translate(${f(center)},${f(y)}) rotate(${f(rotation)}) scale(${f(scale*w.sx*shape.currentX)},${f(scale*sy)}) translate(${f(-width/2)},0)`;
-     glyphs.push({key:`${w.index}-${i}`,word:w.index,char,transform,x:center,y,rotation,sx:w.sx*shape.currentX,sy,progress,pronunciation:shape.variant,phoneProgress:shape.progress});offset+=displayWidth+6;
+     glyphs.push({key:`${w.index}-${i}`,word:w.index,char,transform,x:center,y,rotation,sx:w.sx*shape.currentX,sy,scaleX:scale*w.sx*shape.currentX,scaleY:scale*sy,metricWidth:width,metricTop,metricBottom,row:r,progress,pronunciation:shape.variant,phoneProgress:shape.progress});offset+=displayWidth+6;
     });
    }
    analysis.pauses.forEach((p,i)=>{

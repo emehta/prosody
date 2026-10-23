@@ -1,5 +1,8 @@
 // All times are seconds. Analysis works on mono, 16 kHz PCM.
-import {shiftWord,spokenDuration} from './word-timing.js?v=17';
+import {shiftWord,spokenDuration} from './word-timing.js?v=20';
+import {energyBins,activityThresholds,binActive,edgeToneFloor,matchesToneFloor} from './acoustic-activity.js?v=20';
+import {yin,MIN_PITCH_HZ,MAX_PITCH_HZ} from './pitch.js?v=20';
+export {yin} from './pitch.js?v=20';
 export const RATE = 16000;
 export const HOP = 160;
 export const WINDOW = 640;
@@ -12,55 +15,31 @@ export const quantile = (values, p) => {
 };
 export const normalize = text => text.toUpperCase().replace(/[^A-Z' ]/g,'').replace(/\s+/g,' ').trim();
 
-// YIN difference function with cumulative mean normalization and parabolic refinement.
-// Aperiodic/unvoiced windows have null pitch, never an invented contour.
-export function yin(frame, rate = RATE) {
-  const maxLag = Math.min(Math.floor(rate/65), Math.floor(frame.length/2)-1);
-  const minLag = Math.floor(rate/650), size = frame.length-maxLag;
-  const d = new Float32Array(maxLag+1);
-  let sum = 0;
-  for (let lag=1;lag<=maxLag;lag++) {
-    let diff=0;const offset=Math.floor((maxLag-lag)/2);
-    // Keep every lag comparison centered on the frame's timestamp. A fixed
-    // left edge biases fast rising/falling sounds toward earlier audio.
-    for(let j=0;j<size;j++) {const v=frame[offset+j]-frame[offset+j+lag];diff+=v*v;}
-    sum+=diff;d[lag]=sum ? diff*lag/sum : 1;
-  }
-  let lag = minLag;
-  for(;lag<maxLag;lag++) if(d[lag]<0.15) {
-    while(lag+1<maxLag && d[lag+1]<d[lag]) lag++;
-    break;
-  }
-  if(lag>=maxLag) {
-    lag=minLag; for(let k=minLag+1;k<=maxLag;k++) if(d[k]<d[lag])lag=k;
-    if(d[lag]>0.28) return {hz:null,confidence:0};
-  }
-  const a=d[lag-1],b=d[lag],c=d[lag+1] ?? b;
-  const den=2*(2*b-a-c), shift=den ? (c-a)/den : 0;
-  const hz=rate/(lag+Math.max(-0.5,Math.min(0.5,shift)));
-  return hz>=65&&hz<=650?{hz,confidence:1-b}:{hz:null,confidence:0};
-}
-
 export function analyze(samples, rate = RATE) {
   if(rate!==RATE)throw new Error('Analysis requires 16 kHz audio.');
-  const duration=samples.length/rate, raw=[],energy=[];
+  const duration=samples.length/rate,raw=[],energy=energyBins(samples,rate);
   let clipped=0, peak=0;
   for(const v of samples){if(Math.abs(v)>.985)clipped++;peak=Math.max(peak,Math.abs(v));}
-  // Independent 10 ms energy bins cover every sample, including the final
-  // partial bin. Long pitch windows must not smear pauses or emphasis timing.
-  for(let i=0;i<samples.length;i+=HOP){
-    const end=Math.min(samples.length,i+HOP);let sum=0,power=0;
-    for(let j=i;j<end;j++){sum+=samples[j];power+=samples[j]*samples[j];}
-    const n=end-i;energy.push({t:(i+end)/2/rate,start:i/rate,end:end/rate,rms:Math.sqrt(Math.max(0,power/n-(sum/n)**2))});
-  }
-  const levels=energy.map(f=>f.rms), noise=quantile(levels,.15), loud=quantile(levels,.90);
-  const threshold=Math.max(.000001,Math.min(loud*.22,noise*3));
+  const profile=activityThresholds(energy),threshold=profile.threshold;
+  const toneFloor=edgeToneFloor(samples,rate,profile,yin),pitchFloor=Math.max(1e-7,profile.loud*.0003);
   const starts=[];for(let i=0;i+WINDOW<=samples.length;i+=HOP)starts.push(i);
   const finalStart=samples.length-WINDOW;
   if(finalStart>=0&&starts.at(-1)!==finalStart)starts.push(finalStart);
   for(const start of starts){
     const t=(start+WINDOW/2)/rate,rms=energy[Math.min(energy.length-1,Math.floor(t*rate/HOP))]?.rms??0;
-    const f={t,rms,hz:null,confidence:0};if(rms>=threshold)Object.assign(f,yin(samples.subarray(start,start+WINDOW)));raw.push(f);
+    const f={t,rms,hz:null,confidence:0};
+    // Measure periodicity before deciding that a quiet sound is silence. A
+    // phrase's softer vowel must not become its own estimated noise floor.
+    if(rms>=pitchFloor)Object.assign(f,yin(samples.subarray(start,start+WINDOW)));
+    if(matchesToneFloor(f,rms,toneFloor)){f.hz=null;f.confidence=0;f.reason='background-tone';}
+    raw.push(f);
+  }
+  let cursor=0;
+  for(const bin of energy){
+    while(cursor+1<raw.length&&Math.abs(raw[cursor+1].t-bin.t)<Math.abs(raw[cursor].t-bin.t))cursor++;
+    const f=raw[cursor],periodic=f?.hz&&f.confidence>=.9&&Math.abs(f.t-bin.t)<=.025&&bin.rms>=pitchFloor;
+    bin.active=bin.rms>=threshold||!!periodic;
+    if(periodic&&bin.rms<threshold)bin.activity='periodic-protected';
   }
   // Reject only isolated spikes. A blanket median flattens genuine short
   // movements, particularly the last syllable of a sentence.
@@ -69,7 +48,7 @@ export function analyze(samples, rate = RATE) {
     const left=raw[i-1],right=raw[i+1];
     if(left?.hz&&right?.hz&&Math.abs(12*Math.log2(left.hz/right.hz))<1.5){
       const local=Math.sqrt(left.hz*right.hz);
-      if(Math.abs(12*Math.log2(f.hz/local))>4)return {...f,hz:local,confidence:Math.min(left.confidence,right.confidence)};
+      if(Math.abs(12*Math.log2(f.hz/local))>4)return {...f,hz:null,confidence:0,uncertain:true,reason:'isolated-pitch'};
     }
     return f;
   });
@@ -77,23 +56,26 @@ export function analyze(samples, rate = RATE) {
 }
 
 export function describeAcoustics(frames,energy,duration,peak=0,clipping=0,threshold=null){
-  if(threshold===null){const levels=energy.map(f=>f.rms);threshold=Math.max(.000001,Math.min(quantile(levels,.9)*.22,quantile(levels,.15)*3));}
-  frames=frames.map(f=>f.rms>=threshold?f:{...f,hz:null,confidence:0});
+  if(threshold===null)threshold=activityThresholds(energy).threshold;
+  // Live merges already measured bins from different windows. Do not erase
+  // their protected endings by applying a new whole-session energy threshold.
+  let cursor=0;
+  frames=frames.map(f=>{while(cursor+1<energy.length&&energy[cursor].end<=f.t)cursor++;const bin=energy[cursor];return bin&&f.t>=bin.start&&f.t<=bin.end?binActive(bin,threshold)?f:{...f,hz:null,confidence:0}:f.rms>=threshold?f:{...f,hz:null,confidence:0};});
   const silent=[]; let start=null;
   energy.forEach((f,i)=>{
-    if(f.rms<threshold){if(start===null)start=f.start;}
+    if(!binActive(f,threshold)){if(start===null)start=f.start;}
     else if(start!==null){if(f.start-start>=.18-1e-8)silent.push({start,end:f.start,duration:f.start-start});start=null;}
     if(i===energy.length-1&&start!==null&&duration-start>=.18)silent.push({start,end:duration,duration:duration-start});
   });
   const voiced=frames.filter(f=>f.hz), hz=voiced.map(f=>f.hz), median=quantile(hz,.5);
-  const speech=energy.filter(f=>f.rms>=threshold);
+  const speech=energy.filter(f=>binActive(f,threshold));
   const speechStart=speech[0]?.start ?? 0,speechEnd=speech.at(-1)?.end ?? duration;
   const pauses=silent.filter(p=>p.start>speechStart+.06 && p.end<speechEnd-.06);
   let ending=null;
   // Compare two voiced windows at the end; phrase slope in semitones.
   const tail=voiced.filter(f=>f.t>speechEnd-.55);
   if(tail.length>=12){const split=Math.floor(tail.length/2);const delta=12*Math.log2(quantile(tail.slice(split).map(f=>f.hz),.5)/quantile(tail.slice(0,split).map(f=>f.hz),.5));ending={delta,label:delta>1.2?'Rising':delta< -1.2?'Falling':'Level'};}
-  return {duration,frames,energy,pauses,threshold,peak,clipping,medianHz:median,lowHz:quantile(hz,.1),highHz:quantile(hz,.9),voicedFraction:voiced.length/Math.max(1,frames.length),speechStart,speechEnd,ending};
+  return {duration,frames,energy,pauses,threshold,peak,clipping,medianHz:median,lowHz:quantile(hz,.1),highHz:quantile(hz,.9),voicedFraction:voiced.length/Math.max(1,frames.length),speechStart,speechEnd,ending,pitchRange:{min:MIN_PITCH_HZ,max:MAX_PITCH_HZ},uncertainPitchFraction:frames.filter(f=>f.uncertain).length/Math.max(1,frames.length)};
 }
 
 export function similarity(a,b) {

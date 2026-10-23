@@ -1,4 +1,5 @@
-import {quantile} from './analysis.js?v=17';
+import {energyBins,activityThresholds,edgeToneFloor,matchesToneFloor} from './acoustic-activity.js?v=20';
+import {yin} from './pitch.js?v=20';
 
 // Band-limited streaming conversion for analysis only. Playback always keeps
 // the original native-rate PCM. The same converter handles chunks and files.
@@ -54,19 +55,32 @@ export function uploadAnalysisWindow(samples,trim,rate=16000){
 // before detecting activity; a quiet room's constant noise is not an onset.
 // Low-threshold extension protects soft consonants with only a short guard.
 export function leadingTrim(samples,rate=16000,{quiet=false}={}){
- const hop=Math.max(1,Math.round(rate*.01)),levels=[];
- for(let i=0;i<samples.length;i+=hop){let energy=0,sum=0;const end=Math.min(samples.length,i+hop);for(let j=i;j<end;j++){energy+=samples[j]*samples[j];sum+=samples[j];}const n=Math.max(1,end-i);levels.push(Math.sqrt(Math.max(0,energy/n-(sum/n)**2)));}
- const loud=quantile(levels,.995),noise=quantile(levels,.15),floor=quiet?.0000001:.00003,gate=Math.max(floor,Math.min(loud*.45,Math.max(loud*.035,noise*2.4)));
+ const hop=Math.max(1,Math.round(rate*.01)),energy=energyBins(samples,rate),levels=energy.map(b=>b.rms),profile=activityThresholds(energy,{quiet}),{loud,noise,gate}=profile;
  // Unchanging energy alone (fan noise/DC) provides no speech boundary.
  if(loud<noise*1.35)return {index:0,endIndex:samples.length,seconds:0,speech:false};
  let onset=-1;
  for(let i=0;i<levels.length-2;i++)if(levels[i]>gate&&levels[i+1]>gate&&levels[i+2]>gate){onset=i;break;}
  if(onset<0)return {index:0,endIndex:samples.length,seconds:0,speech:false};
- const lowGate=Math.max(floor*.5,Math.min(gate*.7,Math.max(loud*.002,noise*1.35)));let first=onset;
- while(first>0&&onset-first<30&&levels[first-1]>lowGate)first--;
+ const lowGate=profile.edgeGate,toneFloor=edgeToneFloor(samples,rate,profile,yin),support=new Map();
+ const audible=i=>{
+  if(levels[i]>lowGate)return true;
+  if(levels[i]<Math.max(1e-7,loud*.0003))return false;
+  if(!support.has(i)){
+   const size=Math.round(rate*.04),center=Math.round((i+.5)*hop);
+   // A centered window can straddle a sudden level change and become briefly
+   // aperiodic even when the quiet release itself is clean. Check either side
+   // of that boundary too, within 20 ms, rather than cutting the entire tail
+   // at the first mixed-amplitude window.
+   const reliable=[-size/2,-hop/2,-size+hop/2].some(delta=>{const left=Math.max(0,Math.min(samples.length-size,Math.round(center+delta))),pitch=yin(samples.subarray(left,left+size),rate);return pitch.confidence>=.9&&!matchesToneFloor(pitch,levels[i],toneFloor)&&!!pitch.hz;});
+   support.set(i,reliable);
+  }
+  return support.get(i);
+ };
+ let first=onset;
+ while(first>0&&audible(first-1))first--;
  let last=levels.length-1;
  for(;last>=onset+2;last--)if(levels[last]>gate&&levels[last-1]>gate&&levels[last-2]>gate)break;
- const activeEnd=last;while(last<levels.length-1&&last-activeEnd<30&&levels[last+1]>lowGate)last++;
+ while(last<levels.length-1&&audible(last+1))last++;
  const index=Math.max(0,first*hop-Math.round(rate*.012)),endIndex=Math.min(samples.length,(last+1)*hop+Math.round(rate*.035));
  return {index,endIndex,seconds:index/rate,speech:true};
 }

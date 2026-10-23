@@ -1,17 +1,24 @@
-import {analyze,describeAcoustics,RATE,HOP} from './analysis.js?v=17';
-import {dictationActivity} from './dictation.js?v=17';
+import {analyze,describeAcoustics,RATE,HOP} from './analysis.js?v=20';
+import {dictationActivity} from './dictation.js?v=20';
 import {SampleRing} from './sample-ring.js';
-import {shiftWord} from './word-timing.js?v=17';
+import {shiftWord} from './word-timing.js?v=20';
+import {timeRange} from './live-history.js?v=20';
 
 // Revisit only a 640 ms overlap, retain the most recent 30 s of measurements.
 // Audio positions remain absolute across ring-buffer wraps and quiet passages.
 export class LiveAcoustics{
- constructor(){this.audio=new SampleRing(RATE);this.last=0;this.frames=[];this.energy=[];this.peaks=[];this.activeUntil=0;}
+ constructor({startTime=0}={}){if(!Number.isFinite(startTime)||startTime<0||!Number.isSafeInteger(Math.round(startTime*RATE)))throw new RangeError('Invalid Live restart time.');this.startSample=Math.round(startTime*RATE);this.audio=new SampleRing(RATE);this.audio.end=this.startSample;this.last=this.startSample;this.frames=[];this.energy=[];this.peaks=[];this.activeUntil=0;}
  append(samples,final=false){
+  // Restoring a retained microphone window can deliver many seconds at once.
+  // Analyze all of it through bounded blocks, rather than just its last 640ms.
+  if(samples.length>RATE*.2){let result=null;for(let at=0;at<samples.length;at+=1600)result=this.appendBlock(samples.subarray(at,at+1600),final&&at+1600>=samples.length)||result;return result;}
+  return this.appendBlock(samples,final);
+ }
+ appendBlock(samples,final=false){
   this.audio.append(samples);const length=this.audio.end;
-  if(!final&&(length-this.last<RATE*.08||length<640))return null;
-  if(length<640)return null;this.last=length;
-  const begin=Math.max(0,Math.floor((length-RATE*.64)/HOP)*HOP),offset=begin/RATE,a=analyze(this.audio.slice(begin,length)),cutoff=Math.max(0,length/RATE-30);
+  if(!final&&(length-this.last<RATE*.08||length-this.startSample<640))return null;
+  if(length-this.startSample<640)return null;this.last=length;
+  const begin=Math.max(this.startSample,this.startSample+Math.floor((length-this.startSample-RATE*.64)/HOP)*HOP),offset=begin/RATE,a=analyze(this.audio.slice(begin,length)),cutoff=Math.max(this.startSample/RATE,length/RATE-30);
   const activity=dictationActivity(this.audio.slice(begin,length));
   if(activity.speech)this.activeUntil=Math.max(this.activeUntil,offset+activity.end/RATE);
   if(a.voicedFraction>.08)this.activeUntil=Math.max(this.activeUntil,offset+a.speechEnd);
@@ -26,7 +33,7 @@ export class LiveAcoustics{
 // Transcripts may grow, shrink, or correct a partial word. Select only words
 // with actual acoustic timestamps, and never fill in a selected sample prompt.
 export function recentLiveWords(aligned,start=0,end=Infinity){
- return aligned.filter(w=>w.start>=start&&w.start<end&&w.end>w.start).map(w=>({...w,end:Math.min(end,w.end)}));
+ return timeRange(aligned,start,end,'start').filter(w=>w.start<end&&w.end>w.start).map(w=>({...w,end:Math.min(end,w.end)}));
 }
 export function liveView(analysis,aligned,{seconds=12,maxWords=22}={}){
  const cutoff=Math.max(analysis.windowStart||0,analysis.duration-seconds);
@@ -34,15 +41,15 @@ export function liveView(analysis,aligned,{seconds=12,maxWords=22}={}){
  if(!known.length)return null;
  const start=Math.max(analysis.windowStart||0,known[0].start-.06),end=Math.min(analysis.duration,known.at(-1).end);
  const measured={...analysis,rangeFrames:analysis.frames,duration:end-start,speechStart:Math.max(0,known[0].start-start),speechEnd:end-start,
-  frames:analysis.frames.filter(f=>f.t>=start&&f.t<=end).map(f=>({...f,t:f.t-start})),
-  energy:analysis.energy.filter(f=>f.end>start&&f.start<end).map(f=>({...f,t:f.t-start,start:Math.max(0,f.start-start),end:Math.min(end,f.end)-start})),
-  pauses:analysis.pauses.filter(p=>p.start>=start&&p.end<=end).map(p=>({...p,start:p.start-start,end:p.end-start}))};
+  frames:timeRange(analysis.frames,start,end).map(f=>({...f,t:f.t-start})),
+  energy:timeRange(analysis.energy,start,end,'start','end').filter(f=>f.end>start&&f.start<end).map(f=>({...f,t:f.t-start,start:Math.max(0,f.start-start),end:Math.min(end,f.end)-start})),
+  pauses:timeRange(analysis.pauses,start,end,'start').filter(p=>p.end<=end).map(p=>({...p,start:p.start-start,end:p.end-start}))};
  return {analysis:measured,words:known.map(w=>shiftWord(w,-start)),text:known.map(w=>w.word).join(' '),start,end};
 }
 
 // Reuse measurements already visible in Live while final workers flush. The
 // sentence and contour remain present after Stop instead of becoming a skeleton.
 export function liveReplayAnalysis(analysis,start,duration){
- const end=start+duration,frames=analysis.frames.filter(f=>f.t>=start&&f.t<=end).map(f=>({...f,t:f.t-start})),energy=analysis.energy.filter(f=>f.end>start&&f.start<end).map(f=>({...f,t:f.t-start,start:Math.max(0,f.start-start),end:Math.min(end,f.end)-start}));
+ const end=start+duration,frames=timeRange(analysis.frames,start,end).map(f=>({...f,t:f.t-start})),energy=timeRange(analysis.energy,start,end,'start','end').filter(f=>f.end>start&&f.start<end).map(f=>({...f,t:f.t-start,start:Math.max(0,f.start-start),end:Math.min(end,f.end)-start}));
  return describeAcoustics(frames,energy,duration,analysis.peak,analysis.clipping,analysis.threshold);
 }

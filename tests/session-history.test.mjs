@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {LiveHistory} from '../dist/live-history.js';
+import {LiveHistory,timeRange} from '../dist/live-history.js';
 import {LiveLayout} from '../dist/live-layout.js';
 import {transcriptWindow} from '../dist/live-viewport.js';
 import {summarizeWords} from '../dist/analysis.js';
@@ -36,4 +36,49 @@ test('A full-session export includes historic and recent words with measured con
  const words=Array.from({length:500},(_,i)=>({word:'word'+i,start:i*.4,end:i*.4+.3})),plan=new LiveLayout().update(words,a);
  const {svg}=voiceSVG(a,summarizeWords(plan.words,a),words.map(w=>w.word).join(' '),false,{flow:true});
  assert.equal((svg.match(/class="word"/g)||[]).length,500);assert.ok(svg.includes('Play word0,'));assert.ok(svg.includes('Play word499,'));assert.ok(!svg.includes('NaN'));assert.ok(svg.includes('class="pitch-line"'));
+});
+test('Retry replaces an absolute range despite changed word count and no session indexes',()=>{
+ const h=new LiveHistory();h.transcript({windowStart:0,words:[{word:'before',start:0,end:.5},{word:'wrong',start:1,end:1.8},{word:'after',start:3,end:3.5}]});
+ h.replaceRange(.8,2.5,[{word:'correct',start:1.05,end:1.3},{word:'words',start:1.4,end:2}]);
+ assert.deepEqual(h.words.map(w=>w.word),['before','correct','words','after']);assert.equal(h.words[0].start,0);assert.equal(h.words.at(-1).start,3);
+});
+test('Out-of-order catch-up results preserve already recognized later words',()=>{
+ const h=new LiveHistory();h.transcript({windowStart:0,processedUntil:30,words:[{word:'first',start:.1,end:.5},{word:'later',start:25,end:25.5}]});
+ h.transcript({windowStart:1,processedUntil:15,words:[{word:'backfilled',start:2,end:2.5}]});
+ assert.deepEqual(h.words.map(w=>w.word),['first','backfilled','later']);
+});
+test('Refinement without a prior transcript index corrects the audible range and preserves its neighbors',()=>{
+ const h=new LiveHistory();h.transcript({windowStart:0,words:[{word:'old',start:0,end:.5},{word:'wrong',start:5,end:6},{word:'future',start:10,end:11}]});
+ const a={duration:2,frames:[{t:.2,hz:210}],energy:[{start:0,end:2,t:1,rms:.1}],pauses:[]};
+ h.refine([{word:'new',start:.1,end:.7}],a,5);
+ assert.deepEqual(h.words.map(w=>w.word),['old','new','future']);assert.equal(h.words[1].start,5.1);assert.equal(h.frames[0].t,5.2);
+});
+test('Acoustic updates append only the changing tail while retaining history array identity',()=>{
+ const h=new LiveHistory(),frames=Array.from({length:360000},(_,i)=>({t:i/100,hz:180,rms:.1})),energy=frames.map(f=>({t:f.t+.005,start:f.t,end:f.t+.01,rms:.1}));
+ h.measure({duration:3600,windowStart:0,frames,energy,pauses:[],speechStart:0,speechEnd:3600,activeUntil:3600});const retainedFrames=h.frames,retainedEnergy=h.energy,first=h.frames[0];
+ h.measure({duration:3600.1,windowStart:3570.1,frames:[{t:3600.05,hz:200,rms:.1}],energy:[{t:3600.05,start:3600,end:3600.1,rms:.1}],pauses:[],speechStart:3600,speechEnd:3600.1,activeUntil:3600.1});
+ assert.equal(h.frames,retainedFrames);assert.equal(h.energy,retainedEnergy);assert.equal(h.frames[0],first);assert.equal(h.frames.length,360001);assert.equal(h.frames.at(-1).hz,200);
+});
+test('A repeated word pair joins to its nearest occurrence rather than deleting earlier repetitions',()=>{
+ const h=new LiveHistory(),words=Array.from({length:8},(_,i)=>({word:'very',start:i*.25,end:i*.25+.2}));
+ h.transcript({windowStart:0,processedUntil:2,words});
+ h.transcript({windowStart:1.2,processedUntil:2,words:words.slice(5).map(w=>({...w,start:w.start+.04,end:w.end+.04}))});
+ assert.equal(h.words.length,8);assert.deepEqual(h.words.slice(0,5),words.slice(0,5));assert.equal(h.words[5].start,1.29);
+});
+test('Range replacement preserves historical array references and clips crossing energy intervals',()=>{
+ const h=new LiveHistory();h.words.push({word:'before',start:0,end:.1},{word:'old',start:.2,end:.7},{word:'after',start:1,end:1.2});
+ h.energy.push({start:0,end:1,t:.5,rms:.1});const words=h.words,energy=h.energy;
+ h.replaceRange(.2,.7,[{word:'new',start:.2,end:.7}],{frames:[],energy:[{start:.2,end:.7,t:.45,rms:.2}],pauses:[]});
+ assert.equal(h.words,words);assert.equal(h.energy,energy);assert.deepEqual(h.words.map(w=>w.word),['before','new','after']);
+ assert.deepEqual(h.energy.map(e=>[e.start,e.end]),[[0,.2],[.2,.7],[.7,1]]);
+});
+test('Indexed time queries return only requested measurements and intersecting interval bins',()=>{
+ const frames=Array.from({length:100000},(_,i)=>({t:i/100})),energy=frames.map(f=>({start:f.t,end:f.t+.01}));
+ assert.deepEqual(timeRange(frames,990,990.02).map(f=>f.t),[990,990.01,990.02]);
+ assert.deepEqual(timeRange(energy,990.005,990.015,'start','end').map(f=>f.start),[990,990.01]);
+});
+
+test('Recovering a later acoustic range advances full-history duration without deleting the earlier frames',()=>{
+ const history=new LiveHistory();history.analysis={duration:10};history.frames=[{t:1,hz:150}];history.energy=[];history.pauses=[];
+ history.replaceRange(35,36,[{word:'later',start:35.2,end:35.5}],{duration:36,frames:[{t:35.3,hz:160}],energy:[],pauses:[]});assert.equal(history.analysis.duration,36);assert.equal(history.frames[0].t,1);assert.equal(history.frames.at(-1).t,35.3);
 });

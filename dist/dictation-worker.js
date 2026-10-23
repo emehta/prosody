@@ -1,4 +1,4 @@
-import {LiveDictation,DICTATION_MODEL,DICTATION_REVISION,recognitionAudio,whisperWords} from './dictation.js?v=17';
+import {LiveDictation,DICTATION_MODEL,DICTATION_REVISION,recognitionAudio,whisperWords} from './dictation.js?v=20';
 let enginePromise=null,session=null,latestId=-1,inferenceQueue=Promise.resolve();
 async function engine(){
  if(!enginePromise)enginePromise=(async()=>{
@@ -15,13 +15,18 @@ self.onmessage=async({data})=>{
  try{
   if(type==='load'){await engine();return;}
   if(type==='cancel'){session?.cancel();session=null;latestId=id;return;}
-  if(type==='start'){session?.cancel();latestId=id;const current=new LiveDictation(infer,{onResult:result=>{if(session===current&&id===latestId)self.postMessage({type:'live-aligned',id,result});},onError:error=>{if(session===current&&id===latestId)self.postMessage({type:'error',id,message:error.message});}});session=current;engine().catch(error=>{if(session===current)self.postMessage({type:'error',id,message:error.message});});return;}
+  if(type==='start'){session?.cancel();latestId=id;const current=new LiveDictation(infer,{startTime:data.startTime??0,coverageGaps:data.coverageGaps??[],onResult:result=>{if(session===current&&id===latestId)self.postMessage({type:'live-aligned',id,result});},onCoverage:result=>{if(session===current&&id===latestId)self.postMessage({type:'live-coverage',id,result});},onError:error=>{if(session===current&&id===latestId)self.postMessage({type:'error',id,message:error.message});}});session=current;if(data.startTime||current.coverageGaps.length)self.postMessage({type:'live-coverage',id,result:current.result()});engine().catch(error=>{if(session===current)self.postMessage({type:'error',id,message:error.message});});return;}
   if(type==='chunk'){if(id===latestId)session?.append(data.samples);return;}
-  if(type==='retry-live'){const current=session;await engine();if(current===session&&id===latestId)await current?.resume();return;}
+  if(type==='retry-live'){
+   const current=session;await engine();if(!current||current!==session||id!==latestId)return;
+   const started=performance.now();await current.resume();
+   if(current.final&&current===session&&id===latestId){const result=await current.finish();self.postMessage({type:'live-final',id,result,milliseconds:performance.now()-started,processedDuringRecording:result.coverageThrough});session=null;}
+   return;
+  }
   if(type==='live-stop'){
    if(id!==latestId||!session)return;const current=session,started=performance.now(),result=await current.finish();
    if(session!==current||id!==latestId)return;
-   self.postMessage({type:'live-final',id,result,milliseconds:performance.now()-started,processedDuringRecording:result.processedUntil});session=null;return;
+   self.postMessage({type:'live-final',id,result,milliseconds:performance.now()-started,processedDuringRecording:result.coverageThrough});session=null;return;
   }
   if(type==='analyze'){
    latestId=id;const started=performance.now(),output=await infer(recognitionAudio(data.samples));if(id!==latestId)return;

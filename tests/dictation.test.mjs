@@ -51,7 +51,7 @@ test('Long Live dictation keeps bounded audio windows and never decodes silence'
  let calls=0,maxInput=0;const live=new LiveDictation(async samples=>{calls++;maxInput=Math.max(maxInput,samples.length);return output();});
  live.append(new Float32Array(32000));await live.pump();assert.equal(calls,0);
  for(let i=0;i<120;i++){live.append(breath(1.5));await live.pump();}
- await live.finish();assert.ok(calls>100);assert.ok(maxInput<=14*16000);assert.equal(live.audio.data.length,18*16000);assert.ok(live.lastResult.processedUntil>180);
+ await live.finish();assert.ok(calls>100);assert.ok(maxInput<=14*16000);assert.equal(live.audio.data.length,120*16000);assert.ok(live.lastResult.processedUntil>180);
 });
 test('A CPU-bound worker accepts queued microphone packets before decoding again',async()=>{
  const source=`import {parentPort} from 'node:worker_threads';
@@ -92,4 +92,44 @@ test('Quiet Live replay removes waiting silence without changing the quiet nativ
  const speech=breath(1,.0001),audio=new Float32Array(48000);audio.set(speech,16000);
  const trim=leadingTrim(audio,16000,{quiet:true});assert.equal(trim.speech,true);assert.ok(trim.seconds>.8&&trim.seconds<1);assert.ok(trim.endIndex<35000);
  assert.deepEqual(audio.slice(16000,32000),speech);
+});
+test('A sustained voiced sound reaches recognition without inventing speech in steady aperiodic noise',async()=>{
+ const tone=Float32Array.from({length:32000},(_,i)=>.05*Math.sin(2*Math.PI*180*i/16000));
+ const activity=dictationActivity(tone);assert.equal(activity.speech,true);assert.equal(activity.periodic,true);
+ let calls=0;const live=new LiveDictation(async()=>{calls++;return output('ah');});live.append(tone);await live.finish();assert.equal(calls,1);
+ let seed=678;const noise=Float32Array.from({length:32000},()=>{seed=(1664525*seed+1013904223)>>>0;return(seed/2**32-.5)*.02;});
+ assert.equal(dictationActivity(noise).speech,false);assert.equal(dictationActivity(new Float32Array(32000).fill(.02)).speech,false);
+});
+test('Blocked recognition catches up contiguously instead of losing the intervening speech',async()=>{
+ let release,calls=0;const windows=[],live=new LiveDictation(async samples=>{if(++calls===1)await new Promise(r=>release=r);return {chunks:[{text:'word',timestamp:[0,samples.length/16000]}]};},{onResult:r=>windows.push([r.windowStart,r.processedUntil])});
+ live.append(breath(1.5));live.append(breath(25));release();const result=await live.finish();
+ assert.equal(windows.length,3);assert.equal(windows[0][0],0);assert.equal(windows.at(-1)[1],26.5);
+ for(let i=1;i<windows.length;i++){assert.ok(windows[i][0]<=windows[i-1][1]);assert.ok(windows[i][1]-windows[i][0]<=14);}
+ assert.deepEqual(result.coverageGaps,[]);assert.equal(result.coverageThrough,26.5);assert.equal(result.caughtUp,true);
+});
+test('Unavoidable backlog eviction reports exact missing coverage before another decode completes',async()=>{
+ let release,calls=0;const coverage=[],live=new LiveDictation(async samples=>{if(++calls===1)await new Promise(r=>release=r);return {chunks:[{text:'word',timestamp:[0,samples.length/16000]}]};},{backlogSeconds:18,onCoverage:r=>coverage.push(r)});
+ live.append(breath(1.5));live.append(breath(25));release();const result=await live.finish();
+ assert.deepEqual(result.coverageGaps,[{start:1.5,end:8.5,reason:'audio-evicted'}]);assert.equal(coverage.length,1);assert.equal(coverage[0].retainedFrom,8.5);assert.equal(result.caughtUp,true);assert.equal(result.coverageThrough,26.5);
+});
+test('Retry resumes the failed audible range rather than treating the failed inference as covered',async()=>{
+ let calls=0;const lengths=[],errors=[],live=new LiveDictation(async samples=>{lengths.push(samples.length);if(++calls===1)throw new Error('Model unavailable');return output();},{onError:error=>errors.push(error.message)});
+ live.append(breath(2));await assert.rejects(live.pump(),/Model unavailable/);
+ assert.equal(live.result().coverageThrough,0);assert.equal(live.result().caughtUp,false);assert.equal(errors.length,1);
+ await live.resume();const result=await live.finish();assert.deepEqual(lengths,[32000,32000]);assert.equal(result.words[0].word,'hello');assert.equal(result.coverageThrough,2);assert.equal(result.caughtUp,true);
+});
+test('A stopped session can recover its failed final inference without losing its short last phrase',async()=>{
+ let calls=0;const live=new LiveDictation(async()=>{if(++calls===1)throw new Error('Model unavailable');return output('ending');},{interval:2});
+ live.append(breath(.6));await assert.rejects(live.finish(),/Model unavailable/);assert.equal(live.result().coverageThrough,0);
+ await live.resume();const result=await live.finish();assert.equal(result.text,'ending');assert.equal(result.coverageThrough,.6);assert.equal(result.caughtUp,true);
+});
+test('Silence and an empty decode advance coverage without deleting the last valid transcript',async()=>{
+ const coverage=[];let calls=0;const live=new LiveDictation(async()=>++calls===1?output():{chunks:[]},{onCoverage:r=>coverage.push(r)});
+ live.append(breath(2));await live.pump();live.append(breath(2));await live.pump();live.append(new Float32Array(20*16000));const result=await live.finish();
+ assert.equal(result.text,'hello world');assert.equal(result.coverageThrough,24);assert.equal(result.caughtUp,true);assert.ok(result.processedUntil<result.coverageThrough);assert.ok(coverage.at(-1).caughtUp);
+});
+test('Multiple backlog evictions are disclosed without publishing late words after cancellation',async()=>{
+ let release,calls=0;const coverage=[],seen=[],live=new LiveDictation(async()=>{if(++calls===1)await new Promise(r=>release=r);return output();},{backlogSeconds:18,onCoverage:r=>coverage.push(r),onResult:r=>seen.push(r)});
+ live.append(breath(1.5));live.append(breath(30));release();await live.pump();live.cancel();assert.ok(coverage.some(r=>r.coverageGaps.length));
+ const last=live.result();assert.deepEqual(last.coverageGaps,[{start:1.5,end:13.5,reason:'audio-evicted'}]);const count=seen.length;live.append(breath(5));assert.equal(seen.length,count);assert.equal(live.audio.end/16000,31.5);
 });

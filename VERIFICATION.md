@@ -1,3 +1,19 @@
+# 23 October 2026 — Confirmed fixes and refinements (v20)
+
+This section describes the current release. Earlier dated sections below are historical checks and their old limits do not describe v20.
+
+- Automated regression suite: 275 tests pass. Coverage includes quiet endings/whispers, 55–1,000 Hz pitch and abstention, contiguous Live catch-up, disclosed backlog eviction, absolute recovery clocks, full-history replacement, storage failures, bounded streaming replay, word crops, exact Float32 WAV exports, worker lifecycle, pronunciation cancellation/retry, selector cancellation/zoom, contrast, focus and startup.
+- All 16 private original takes (15 prompt/delivery slots plus one retake, 70.58 seconds) were checked mechanically without modifying their audio. No private audio, transcript, path or identifying hash is included in this repository. These inputs are not independently annotated phonetic or word-boundary ground truth; no general accent accuracy percentage is claimed.
+- Browser integration used repeated real speech with controlled capture (no microphone hardware) to exercise a 46.706-second native session with leading/trailing waits. The complete original exported as IEEE Float32 WAV with correct byte/frame counts; cropped replay exceeded 30 seconds, replayed from saved storage after reload, and survived Clear→Undo. Earlier rows remained reachable at scrollTop0 while the card stayed fixed.
+- Browser layout checks:390×844 showed a366px card and340px inner canvas with no horizontal overflow.720×390 retained a198px canvas and all header controls inside the viewport. Light/dark, guide/status/transcript dialogs, selection, import cancellation and ordinary speech replay were checked.
+- Playback keeps the audible-output clock; source reads and sources stay bounded. Whole-session storage has explicit failure fallback. Stale or uncertain trimming evidence retains extra sound conservatively, rather than claiming a precise crop. Full-session timing is refined with context anchors and request IDs; uncertain boundaries remain labeled estimates.
+- Startup imports immediately, prepares isolation in the background, and never automatically reloads. The default model matches the initial sample mode. Optional pronunciation does not gate capture/replay, pauses behind dictation, and applies geometry changes only after replay pauses or ends.
+- Dependency lockfile audit reports zero advisories after the optional Node-only sharp override. The browser runtime is unchanged; a checked-in asset hash manifest is verified by CI.
+
+Remaining limits: on-device English models can still mistranscribe accents, repetitions and whispers. Whisper attention/CTC/phoneme boundaries are estimates, not human annotations. Pronunciation consistency is not calibrated confidence. Compressed audio uses full browser decode after preflight; exceptionally large/uninspectable compressed sources need a WAV excerpt. Storage quota/eviction and very long histories depend on device resources. Transcript correction, detailed pitch inspection and two-take comparison remain deferred as requested.
+
+---
+
 ## 21 October 2026 — Approved pronunciation treatments (v17)
 
 - `npm test`: 148 tests passed, including 13 new pronunciation checks. Existing capture, trim, replay, contour, Live history and viewport checks remain green.

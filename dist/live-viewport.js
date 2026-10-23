@@ -1,3 +1,4 @@
+import {focusedWord,restoreWordFocus} from './view.js?v=20';
 // Every row remains in the scroll geometry. Only rows near the viewport need
 // SVG nodes, so reviewing a long session does not create a huge document.
 export function transcriptWindow(totalRows,top,height,step,overscan=2){
@@ -42,10 +43,10 @@ export class LiveViewport{
   this.spec={...range,totalRows,W,rowH,step,top,focusRow};return this.spec;
  }
  render(svg,scene,spec=this.spec){
-  this.mount();const before=this.feed.scrollTop;
+  this.mount();const before=this.feed.scrollTop,snapshot=focusedWord(this.content);
   this.pages.querySelector('.live-before').style.height=spec.first*spec.step+'px';
   this.pages.querySelector('.live-after').style.height=(spec.totalRows-spec.last)*spec.step+'px';
-  this.content.innerHTML=svg;this.rangeKey=spec.key;
+  this.content.innerHTML=svg;this.rangeKey=spec.key;restoreWordFocus(this.content,snapshot,this.feed);
   this.feed.scrollTop=before;
   if(this.following)this.moveTo(spec.top,{instant:this.reduced||spec.focusRow!==null||!this.painted});
   this.painted=true;
