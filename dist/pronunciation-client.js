@@ -1,6 +1,6 @@
 // Generation-scoped background work. Optional phonetics never owns capture or
 // replay state, and only this cache changes when a worker response arrives.
-import {shiftWord} from './word-timing.js?v=20';
+import {shiftWord} from './word-timing.js?v=21';
 export class PronunciationClient{
  constructor(onUpdate=()=>{},onState=()=>{},{factory=url=>new Worker(url,{type:'module'}),timeoutMs=90000,loadTimeoutMs=180000,setTimer=(fn,ms)=>globalThis.setTimeout(fn,ms),clearTimer=id=>globalThis.clearTimeout(id)}={}){
   Object.assign(this,{factory,timeoutMs,loadTimeoutMs,setTimer,clearTimer,onUpdate,onState});
@@ -17,7 +17,7 @@ export class PronunciationClient{
  open(){
   if(this.worker)return true;
   try{
-   const worker=this.factory(new URL('./pronunciation-worker.js?v=20',import.meta.url));this.worker=worker;
+   const worker=this.factory(new URL('./pronunciation-worker.js?v=21',import.meta.url));this.worker=worker;
    worker.onmessage=({data})=>{
     if(this.worker!==worker||data.id!==this.id||(data.serial!==undefined&&data.serial<this.minimumSerial))return;
     if(data.type==='unavailable'){this.fail(data.reason||'model');return;}

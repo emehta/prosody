@@ -1,5 +1,5 @@
-import {MAX_SECONDS,MIN_SECONDS,MAX_FILE_BYTES,MAX_UPLOAD_WORK_BYTES,MAX_UPLOAD_HEADER_BYTES} from './limits.js?v=20';
-import {waveformPeaks} from './selection.js?v=20';
+import {MAX_SECONDS,MIN_SECONDS,MAX_FILE_BYTES,MAX_UPLOAD_WORK_BYTES,MAX_UPLOAD_HEADER_BYTES} from './limits.js?v=21';
+import {waveformPeaks} from './selection.js?v=21';
 const abortError=()=>new DOMException('Audio import canceled.','AbortError');
 const check=signal=>{if(signal?.aborted)throw abortError();};
 const ascii=(bytes,start,length)=>String.fromCharCode(...bytes.subarray(start,start+length));

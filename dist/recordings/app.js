@@ -1,8 +1,8 @@
-import {Microphone} from '../microphone.js?v=20';
-import {ACCENTS, PROMPTS, MAX_TAKE_SECONDS, coverage, makeTake, takesFor} from './data.js?v=20';
-import {RecordingStore} from './store.js?v=20';
-import {StudyRecorder} from './recorder.js?v=20';
-import {makeArchive, takeFilename} from './archive.js?v=20';
+import {Microphone} from '../microphone.js?v=21';
+import {ACCENTS, PROMPTS, MAX_TAKE_SECONDS, coverage, makeTake, takesFor} from './data.js?v=21';
+import {RecordingStore} from './store.js?v=21';
+import {StudyRecorder} from './recorder.js?v=21';
+import {makeArchive, takeFilename} from './archive.js?v=21';
 
 const $ = id => document.getElementById(id), store = new RecordingStore();
 const microphone = new Microphone(), rows = new Map(), selected = new Map(), urls = new Map();

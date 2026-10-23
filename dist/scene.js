@@ -1,9 +1,9 @@
-import {wordWidth,LETTERS} from './lettering.js?v=20';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=20';
-import {quantile} from './analysis.js?v=20';
-import {LIVE_ROW_HEIGHT,LIVE_TYPE_SCALE} from './live-layout.js?v=20';
-import {spokenDuration,spokenElapsed} from './word-timing.js?v=20';
-import {pronunciationFeatures,pronunciationShape} from './pronunciation.js?v=20';
+import {wordWidth,LETTERS} from './lettering.js?v=21';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=21';
+import {quantile} from './analysis.js?v=21';
+import {LIVE_ROW_HEIGHT,LIVE_TYPE_SCALE} from './live-layout.js?v=21';
+import {spokenDuration,spokenElapsed} from './word-timing.js?v=21';
+import {pronunciationFeatures,pronunciationShape} from './pronunciation.js?v=21';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const ease=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
 const f=n=>Number(n).toFixed(2);

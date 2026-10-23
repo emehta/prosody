@@ -1,4 +1,4 @@
-import {checkSlot, floatWav, makeTake, microphoneSettings} from './data.js?v=20';
+import {checkSlot, floatWav, makeTake, microphoneSettings} from './data.js?v=21';
 
 // A new permission request never touches any committed recording.
 export class StudyRecorder {

@@ -1,25 +1,25 @@
-import {RATE,summarizeWords} from './analysis.js?v=20';
-import {AnalysisResampler,analysisSamples,joinSamples,leadingTrim,uploadAnalysisWindow} from './audio.js?v=20';
-import {promptSVG,voiceSVG,bindMotion,pitchSVG,liveTailSVG,replaceVisualization} from './view.js?v=20';
-import {Microphone} from './microphone.js?v=20';
-import {MAX_SECONDS,MAX_FILE_BYTES} from './limits.js?v=20';
-import {ClipEditor} from './clip-editor.js?v=20';
-import {liveView,recentLiveWords,liveReplayAnalysis} from './live-analysis.js?v=20';
+import {RATE,summarizeWords} from './analysis.js?v=21';
+import {AnalysisResampler,analysisSamples,joinSamples,leadingTrim,uploadAnalysisWindow} from './audio.js?v=21';
+import {promptSVG,voiceSVG,bindMotion,pitchSVG,liveTailSVG,replaceVisualization} from './view.js?v=21';
+import {Microphone} from './microphone.js?v=21';
+import {MAX_SECONDS,MAX_FILE_BYTES} from './limits.js?v=21';
+import {ClipEditor} from './clip-editor.js?v=21';
+import {liveView,recentLiveWords,liveReplayAnalysis} from './live-analysis.js?v=21';
 import {SampleRing} from './sample-ring.js';
-import {LiveViewport} from './live-viewport.js?v=20';
-import {LiveLayout,LIVE_ROW_HEIGHT} from './live-layout.js?v=20';
-import {LiveHistory} from './live-history.js?v=20';
-import {finalizeLiveTranscript} from './live-transcript.js?v=20';
-import {curve,pitchAnchors,pitchHeight} from './contour.js?v=20';
-import {SamplePlayback} from './playback.js?v=20';
-import {tightenWords,shiftWord} from './word-timing.js?v=20';
-import {PronunciationClient} from './pronunciation-client.js?v=20';
-import {WorkerClient} from './worker-client.js?v=20';
-import {SessionStore,NativeArchive,floatHeader} from './session-archive.js?v=20';
-import {SessionUndo} from './session-undo.js?v=20';
-import {prepareAudioUpload} from './upload-source.js?v=20';
-import {refinementWindows} from './session-refinement.js?v=20';
-import {sessionTrim} from './session-trim.js?v=20';
+import {LiveViewport} from './live-viewport.js?v=21';
+import {LiveLayout,LIVE_ROW_HEIGHT} from './live-layout.js?v=21';
+import {LiveHistory} from './live-history.js?v=21';
+import {finalizeLiveTranscript} from './live-transcript.js?v=21';
+import {curve,pitchAnchors,pitchHeight} from './contour.js?v=21';
+import {SamplePlayback} from './playback.js?v=21';
+import {tightenWords,shiftWord} from './word-timing.js?v=21';
+import {PronunciationClient} from './pronunciation-client.js?v=21';
+import {WorkerClient} from './worker-client.js?v=21';
+import {SessionStore,NativeArchive,floatHeader} from './session-archive.js?v=21';
+import {SessionUndo} from './session-undo.js?v=21';
+import {prepareAudioUpload} from './upload-source.js?v=21';
+import {refinementWindows} from './session-refinement.js?v=21';
+import {sessionTrim} from './session-trim.js?v=21';
 const microphone=new Microphone(),sessionStore=new SessionStore();
 let nativeArchive=null,archivedSource=null,replayOrigin=0,currentSessionId=null,pendingCapture=null,captureEpoch=0,archiveFinalizing=false;
 let importController=null,savedOpenToken=0,lastCoverageThrough=0,archiveTrim=null,refineSerial=0,timingRequestId=null;
@@ -165,7 +165,7 @@ function controls(){
 }
 function initializeSpeech(live=false){
  speech?.terminate();speechKind=live;modelReady=false;modelFailed=false;
- speech=new WorkerClient(new URL(live?'./dictation-worker.js?v=20':'./worker.js?v=20',import.meta.url));analysisState.speech='loading';
+ speech=new WorkerClient(new URL(live?'./dictation-worker.js?v=21':'./worker.js?v=21',import.meta.url));analysisState.speech='loading';
  const activeSpeech=speech;
  speech.onmessage=({data})=>{
   if(speech!==activeSpeech)return;
@@ -200,7 +200,7 @@ function initializeSpeech(live=false){
  speech.onerror=()=>{clearTimeout(speechTimer);analysisState.speech='unavailable';modelFailed=true;modelReady=false;pending=false;queuedPlay=false;$('retry-model').hidden=false;message('Word timing is unavailable. You can still record, replay audio and see its pitch.');controls();};
 }
 function initializeWorkers(){initializeSpeech(false);initializeSignal();}
-function initializeSignal(){signal?.terminate();signalFailed=false;analysisState.signal='ready';signal=new WorkerClient(new URL('./signal-worker.js?v=20',import.meta.url));
+function initializeSignal(){signal?.terminate();signalFailed=false;analysisState.signal='ready';signal=new WorkerClient(new URL('./signal-worker.js?v=21',import.meta.url));
  signal.onmessage=({data})=>{
   if(data.id!==generation)return;
   if(data.type==='live-acoustic'){if(mode==='live'){if(!liveResult)$('visualization').dataset.liveFirstMs=(performance.now()-recordStart).toFixed(1);$('visualization').dataset.liveUpdates=String(Number($('visualization').dataset.liveUpdates||0)+1);liveResult=data.result;liveHistory.measure(liveResult);saveLivePause();result=liveResult;$('visualization').dataset.liveSignalMs=data.milliseconds.toFixed(1);paintLive();}return;}
@@ -228,7 +228,7 @@ function requestPronunciation(live=false){
 }
 function warmTiming(){
  if(timingWorker)return;
- timingWorker=new WorkerClient(new URL('./worker.js?v=20',import.meta.url));
+ timingWorker=new WorkerClient(new URL('./worker.js?v=21',import.meta.url));
  timingWorker.onmessage=({data})=>{
   if(data.id!==generation)return;
   if(fullRefinementJob&&data.id===fullRefinementJob.id&&data.requestId===fullRefinementJob.requestId&&['refined','error'].includes(data.type)){clearTimeout(timingTimer);const job=fullRefinementJob;fullRefinementJob=null;if(data.type==='refined')job.resolve(data.words);else job.reject(new Error(data.message));return;}

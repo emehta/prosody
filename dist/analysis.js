@@ -1,8 +1,8 @@
 // All times are seconds. Analysis works on mono, 16 kHz PCM.
-import {shiftWord,spokenDuration} from './word-timing.js?v=20';
-import {energyBins,activityThresholds,binActive,edgeToneFloor,matchesToneFloor} from './acoustic-activity.js?v=20';
-import {yin,MIN_PITCH_HZ,MAX_PITCH_HZ} from './pitch.js?v=20';
-export {yin} from './pitch.js?v=20';
+import {shiftWord,spokenDuration} from './word-timing.js?v=21';
+import {energyBins,activityThresholds,binActive,edgeToneFloor,matchesToneFloor} from './acoustic-activity.js?v=21';
+import {yin,MIN_PITCH_HZ,MAX_PITCH_HZ} from './pitch.js?v=21';
+export {yin} from './pitch.js?v=21';
 export const RATE = 16000;
 export const HOP = 160;
 export const WINDOW = 640;

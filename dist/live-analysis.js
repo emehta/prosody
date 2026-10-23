@@ -1,8 +1,8 @@
-import {analyze,describeAcoustics,RATE,HOP} from './analysis.js?v=20';
-import {dictationActivity} from './dictation.js?v=20';
+import {analyze,describeAcoustics,RATE,HOP} from './analysis.js?v=21';
+import {dictationActivity} from './dictation.js?v=21';
 import {SampleRing} from './sample-ring.js';
-import {shiftWord} from './word-timing.js?v=20';
-import {timeRange} from './live-history.js?v=20';
+import {shiftWord} from './word-timing.js?v=21';
+import {timeRange} from './live-history.js?v=21';
 
 // Revisit only a 640 ms overlap, retain the most recent 30 s of measurements.
 // Audio positions remain absolute across ring-buffer wraps and quiet passages.

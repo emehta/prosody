@@ -1,4 +1,4 @@
-import {MAX_SECONDS,MIN_SECONDS} from './limits.js?v=20';
+import {MAX_SECONDS,MIN_SECONDS} from './limits.js?v=21';
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export class ClipSelection{
  constructor(duration,max=MAX_SECONDS,min=MIN_SECONDS){

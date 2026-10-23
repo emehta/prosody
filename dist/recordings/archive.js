@@ -1,4 +1,4 @@
-import {ACCENTS, PROMPTS, STUDY_VERSION} from './data.js?v=20';
+import {ACCENTS, PROMPTS, STUDY_VERSION} from './data.js?v=21';
 const encoder = new TextEncoder();
 const table = Uint32Array.from({length: 256}, (_, n) => {
   for (let k = 0; k < 8; k++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1;

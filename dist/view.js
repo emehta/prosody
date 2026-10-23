@@ -1,8 +1,8 @@
-import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=20';
-import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=20';
-import {createScene} from './scene.js?v=20';
-import {quietIntervals} from './word-timing.js?v=20';
-import {CLEAR_T_PATHS} from './pronunciation.js?v=20';
+import {wordWidth,wordPaths,LETTERS} from './lettering.js?v=21';
+import {balanceRows,curve,pitchAnchors,pitchHeight} from './contour.js?v=21';
+import {createScene} from './scene.js?v=21';
+import {quietIntervals} from './word-timing.js?v=21';
+import {CLEAR_T_PATHS} from './pronunciation.js?v=21';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 // Word indices change when a Live window is virtualized. Preserve the stable
 // session identity, without constructing a selector from recognized speech.
@@ -40,7 +40,7 @@ export function pitchSVG(analysis,small=false){
 export function voiceSVG(analysis,words,text,small=false,{time=null,flow=false}={}){
  if(!words.length)return {svg:unalignedSVG(analysis,text,small),rows:[],scene:null};
  const scene=createScene(analysis,words,text,small,{flow}),frame=scene.frame(time),{W,H,rowH}=scene;
- const parts=[`<svg xmlns="http://www.w3.org/2000/svg" class="voice-svg" id="voice-svg" viewBox="0 -12 ${W} ${H+12}" role="group" aria-label="Pitch contour and spoken words"><title>${esc(text)}</title><desc>Letter width and height express estimated relative spoken duration. Supported character alignment adds bounded local shaping; it is not exact phoneme duration. Position and tilt follow measured voiced pitch, with interpolation through unvoiced gaps. Coral segments estimate energy and prominence. Playback reveals these movements as each word is spoken.</desc>`];
+ const parts=[`<svg xmlns="http://www.w3.org/2000/svg" class="voice-svg" data-fit="${scene.rows.length<=3?'canvas':'scroll'}" id="voice-svg" viewBox="0 -12 ${W} ${H+12}" role="group" aria-label="Pitch contour and spoken words"><title>${esc(text)}</title><desc>Letter width and height express estimated relative spoken duration. Supported character alignment adds bounded local shaping; it is not exact phoneme duration. Position and tilt follow measured voiced pitch, with interpolation through unvoiced gaps. Coral segments estimate energy and prominence. Playback reveals these movements as each word is spoken.</desc>`];
  for(const layout of frame.layouts){
   const r=layout.r,top=r*rowH,id=`contour-${r}`;
   parts.push(`<defs><path id="${id}" d="${layout.d}"/><clipPath id="reveal-${r}"><rect data-reveal="${r}" x="0" y="${top-12}" width="${layout.reveal}" height="${rowH+24}"/></clipPath></defs><g clip-path="url(#reveal-${r})"><use href="#${id}" class="pitch-line${layout.unvoiced?' unvoiced-contour':''}"/>`);

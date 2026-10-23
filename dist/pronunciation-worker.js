@@ -1,5 +1,5 @@
-import {PHONE_MODEL,PHONE_REVISION,PHONE_DTYPE,decodePhones,annotatePronunciation,confirmConsonants} from './pronunciation.js?v=20';
-import {shiftWord} from './word-timing.js?v=20';
+import {PHONE_MODEL,PHONE_REVISION,PHONE_DTYPE,decodePhones,annotatePronunciation,confirmConsonants} from './pronunciation.js?v=21';
+import {shiftWord} from './word-timing.js?v=21';
 let enginePromise=null;
 async function engine(progress=()=>{}){
  if(!enginePromise)enginePromise=(async()=>{

@@ -1,5 +1,5 @@
-import {ClipSelection,waveformPeaks,timecode} from './selection.js?v=20';
-import {floatHeader} from './session-archive.js?v=20';
+import {ClipSelection,waveformPeaks,timecode} from './selection.js?v=21';
+import {floatHeader} from './session-archive.js?v=21';
 export class ClipEditor{
  constructor(dialog){
   this.dialog=dialog;this.track=dialog.querySelector('#clip-track');this.audio=dialog.querySelector('audio');

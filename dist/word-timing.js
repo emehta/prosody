@@ -1,4 +1,4 @@
-import {binActive} from './acoustic-activity.js?v=20';
+import {binActive} from './acoustic-activity.js?v=21';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const percentile=(items,p)=>{const a=items.slice().sort((a,b)=>a-b);return a[Math.min(a.length-1,Math.floor(a.length*p))]||0;};
 function energyRange(bins,start,end){let lo=0,hi=bins.length;while(lo<hi){const m=(lo+hi)>>1;if(bins[m].end<=start)lo=m+1;else hi=m;}const first=lo;hi=bins.length;while(lo<hi){const m=(lo+hi)>>1;if(bins[m].start<end)lo=m+1;else hi=m;}return bins.slice(first,lo);}

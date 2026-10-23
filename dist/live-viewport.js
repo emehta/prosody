@@ -1,4 +1,4 @@
-import {focusedWord,restoreWordFocus} from './view.js?v=20';
+import {focusedWord,restoreWordFocus} from './view.js?v=21';
 // Every row remains in the scroll geometry. Only rows near the viewport need
 // SVG nodes, so reviewing a long session does not create a huge document.
 export function transcriptWindow(totalRows,top,height,step,overscan=2){

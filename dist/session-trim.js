@@ -1,5 +1,5 @@
-import {analysisSamples,leadingTrim} from './audio.js?v=20';
-import {activityThresholds} from './acoustic-activity.js?v=20';
+import {analysisSamples,leadingTrim} from './audio.js?v=21';
+import {activityThresholds} from './acoustic-activity.js?v=21';
 const MAX_PROBE_SECONDS=30,CONTEXT=.6;
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 

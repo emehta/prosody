@@ -1,5 +1,5 @@
-import {energyBins,activityThresholds,edgeToneFloor,matchesToneFloor} from './acoustic-activity.js?v=20';
-import {yin} from './pitch.js?v=20';
+import {energyBins,activityThresholds,edgeToneFloor,matchesToneFloor} from './acoustic-activity.js?v=21';
+import {yin} from './pitch.js?v=21';
 
 // Band-limited streaming conversion for analysis only. Playback always keeps
 // the original native-rate PCM. The same converter handles chunks and files.
