@@ -56,7 +56,7 @@ function recordingName(extension){return `prosody-${new Date().toISOString().rep
 function engineStatus(){
  const stages=[['Words',analysisState.speech],['Pitch',analysisState.signal],['Pronunciation',analysisState.pronunciation]];
  const issue=stages.some(([,s])=>['unavailable','error','failed'].includes(s));
- $('engine-status').textContent='Analysis';$('engine-status').title=stages.map(([name,state])=>`${name}: ${state}`).join(' · ');$('engine-status').dataset.state=issue?'unavailable':stages.some(([,s])=>['loading','analyzing'].includes(s))?'loading':'ready';
+ $('engine-status').disabled=false;$('engine-status').textContent='Analysis';$('engine-status').title=stages.map(([name,state])=>`${name}: ${state}`).join(' · ');$('engine-status').dataset.state=issue?'unavailable':stages.some(([,s])=>['loading','analyzing'].includes(s))?'loading':'ready';
  $('engine-status').classList.toggle('needs-attention',issue);$('engine-retry').disabled=!issue||pending||sessionRefining||archiveFinalizing||importing||['permission','recording','stopping'].includes(mode);
  const list=$('engine-list');list.replaceChildren();
  for(const [name,state] of stages){const li=document.createElement('li'),strong=document.createElement('strong'),p=document.createElement('p');strong.textContent=name;p.textContent=({idle:'Loads when needed',loading:'Loading on this device',analyzing:'Analyzing on this device',ready:'Ready',unavailable:'Unavailable — retry to recover',error:'Unavailable — retry to recover',failed:'Unavailable — retry to recover',disabled:'Paused',paused:'Waiting for word recognition'})[state]||state;li.append(strong,p);list.append(li);}
